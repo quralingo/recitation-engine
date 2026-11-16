@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.1.0-beta.2 (unpublished)
+## 0.1.0-beta.3 (unpublished)
+
+- Support static-framework/static-library CocoaPods configurations: compile against
+  the SDK from the pod and link its SPM product once in each consuming user target.
+- Preserve Firebase static configuration, global linkage and ObjC linker flags.
+- Deduplicate/repair project references and remove old static-pod SDK link entries.
+- Add static/dynamic project tests and an offline Swift/C/resource link fixture.
+  Project tests pass; the fixture and actual SDK builds still need a normal Xcode
+  environment because this sandbox blocks SwiftPM manifest-cache writes.
+
+## 0.1.0-beta.2
 
 - Bundle all 114 Hafs surah phoneme references with npm and load requested surahs
   lazily using Metro-compatible static paths. No app-side JSON imports required.

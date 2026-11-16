@@ -22,8 +22,11 @@ release. No QuranLingo app repository was modified.
   sequence equality for every ayah. These are data/export checks, not device tests.
 - Ruby syntax of podspec and SPM helper; Xcodeproj test constructs, saves/reopens
   project, verifies exact SDK pin/link product, recovery from RN package-reference
-  cleanup, module include paths and idempotence. The iOS helper requires dynamic
-  frameworks; static CocoaPods linkage is unsupported in this integration candidate.
+  cleanup, module include paths and idempotence. Static-helper tests also pass for
+  static frameworks/libraries, host linking, migration, multiple consumers and
+  unchanged unrelated targets/settings. See docs/ios-static-linkage.md. The offline
+  compile/link fixture was attempted but blocked by Xcode/SwiftPM sandbox cache
+  permissions, so native static linkage is not yet build-proven here.
 - Swift frontend syntax parse (not typecheck/link against the SDK).
 
 ## Environmental limits

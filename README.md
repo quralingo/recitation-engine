@@ -27,15 +27,17 @@ resolves `google()` and `mavenCentral()` (including settings-level repositories)
 The upstream manifest declares microphone/network and background-worker permissions.
 
 iOS: CocoaPods links the bridge, and Swift Package Manager links the official SDK.
-The supported initial integration uses **dynamic frameworks**; static linkage is
-not supported by this package's SPM helper. Check compatibility with other native
-dependencies before integration. Add this to your `ios/Podfile` (merge into the
-existing post_install):
+The helper supports static frameworks, plain static-library pods and the existing
+dynamic-framework path. Keep your app's current linkage (including Firebase's
+static configuration). Add this to `ios/Podfile` (merge into the existing
+post_install):
 
 ```ruby
 require_relative '../node_modules/@quranlingoapp/recitation/ios/spm'
 
-use_frameworks! :linkage => :dynamic
+# Keep your existing use_frameworks! configuration, e.g.:
+use_frameworks! :linkage => :static
+# Keep $RNFirebaseAsStaticFramework = true if your app uses it.
 
 post_install do |installer|
   # Keep your existing react_native_post_install(...) here first.
@@ -44,11 +46,18 @@ end
 ```
 
 Run `pod install`, open the app's `.xcworkspace` and let Xcode resolve packages.
-This helper pins the SDK product on the QuralingoRecitation pod target; do not add
-a second manually copied SDK or engine binary. Add `NSMicrophoneUsageDescription`
+With static pods, the helper adds a compile dependency to QuralingoRecitation and
+links the SPM product once in each consuming user target identified by CocoaPods.
+It saves those user-project changes. It removes old SDK link entries from the
+static pod to avoid archiving the same engine into both the pod and the app. With
+a dynamic pod it keeps linkage on that framework as before. It does not change
+Firebase/GoogleSignIn dependencies, global linkage or linker flags. Do not add a
+second manually copied SDK or engine binary. Add `NSMicrophoneUsageDescription`
 to the host Info.plist. Resolve SPM packages in CI before building the workspace.
-The pod helper has been structurally tested with Xcodeproj; an actual app build
-remains necessary.
+The helper's static/dynamic project structure is tested with Xcodeproj. An offline
+Swift/C/resource link fixture is provided as `ruby test/spm_link_fixture.rb`; run
+it and a real host build to validate linkage in your Xcode environment. See
+docs/ios-static-linkage.md for details and remaining verification limits.
 
 Each host needs approved Android/iOS keys for its package/bundle identifiers from
 https://sdk.quranlab.ai. Never publish keys in this package. The official Client

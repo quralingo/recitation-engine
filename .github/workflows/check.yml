@@ -21,4 +21,6 @@ jobs:
           ruby-version: '3.3'
       - run: gem install xcodeproj -v 1.27.0 --no-document
       - run: ruby test/spm_test.rb
+      - run: ruby test/spm_static_test.rb
+      - run: ruby test/spm_link_fixture.rb
       - run: swiftc -frontend -parse ios/RecitationModule.swift
