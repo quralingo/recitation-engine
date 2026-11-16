@@ -94,7 +94,8 @@ raise 'SDK must be archived once by the pod' unless members.count('TajweedFormer
 product = Dir.glob(File.join(root, 'DerivedData', 'Build', 'Products', '*', 'FixtureApp.app')).first
 raise 'SPM resource bundle did not reach the app' unless product && (official || Dir.glob(File.join(product, '**', 'probe.txt')).any?)
 raise 'SDK privacy manifest did not reach the app' unless Dir.glob(File.join(product, '**', 'PrivacyInfo.xcprivacy')).any?
-symbols = IO.popen(['xcrun', 'nm', '-g', File.join(product, 'FixtureApp')], &:read)
-symbol = official ? '_opus_encode' : '_recitation_core_probe'
+images = [File.join(product, 'FixtureApp')] + Dir.glob(File.join(product, '*.debug.dylib'))
+symbols = images.map { |image| IO.popen(['xcrun', 'nm', '-g', image], &:read) }.join("\n")
+symbol = official ? '_opus_encode_float' : '_recitation_core_probe'
 raise 'C SDK symbol must link exactly once' unless symbols.lines.count { |line| line.split.last == symbol } == 1
 puts 'Static fixture compiled; SDK archive members and final symbol occur once; SDK resources/privacy reached app'

@@ -95,9 +95,32 @@ function align(expected: readonly ExpectedWord[], decoded: Decoded,
   });
 }
 
+/** Some model builds emit phones without word bars. Only infer exact boundaries. */
+function exactBoundaries(expected: readonly ExpectedWord[], decoded: Decoded, bar: number | null): Decoded {
+  if (bar === null || expected.length < 2 || !decoded.tokens.length || decoded.tokens.some(t => t.id === bar)) return decoded;
+  const phones = expected.flatMap(w => w.phonemes);
+  if (decoded.tokens.length > phones.length || decoded.tokens.some((t, i) => t.name !== phones[i])) return decoded;
+  const boundaries = new Set<number>();
+  let end = 0;
+  for (const word of expected) { end += word.phonemes.length; boundaries.add(end); }
+  const tokens: Token[] = [];
+  let settled = 0;
+  decoded.tokens.forEach((token, i) => {
+    tokens.push(token);
+    if (i < decoded.settled) settled++;
+    // Require a following phone before closing a streaming word.
+    if (boundaries.has(i + 1) && (i + 1 < decoded.tokens.length || decoded.isFinal)) {
+      tokens.push({ ...token, id: bar, name: '|', confidence: null });
+      if (i + 1 < decoded.settled || decoded.isFinal) settled++;
+    }
+  });
+  return { ...decoded, tokens, settled };
+}
+
 /** Tentative phones cannot influence a committed alignment. */
 export function alignWords(expected: readonly ExpectedWord[], decoded: Decoded,
   bar: number | null, config: Thresholds = DEFAULT_THRESHOLDS): WordFeedback[] {
+  decoded = exactBoundaries(expected, decoded, bar);
   const full = align(expected, decoded, bar, config);
   if (decoded.isFinal) return full;
   let lastBoundary = -1;

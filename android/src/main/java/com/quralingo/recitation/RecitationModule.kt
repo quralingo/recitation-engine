@@ -52,7 +52,9 @@ class RecitationModule(private val context: ReactApplicationContext) : ReactCont
     }
     @ReactMethod fun loadModel(promise: Promise) = command(promise) {
         check(!running) { "Stop the current session" }
-        val m = checkNotNull(client) { "Configure first" }.model()
+        val configuredClient = checkNotNull(client) { "Configure first" }
+        configuredClient.prefetch()
+        val m = configuredClient.model()
         model = m
         mapOf("version" to m.version, "build" to m.build, "tokens" to m.tokens.names,
             "blank" to m.tokens.blank, "wordBar" to m.tokens.wordBar, "referenceAvailable" to (m.reference != null),
@@ -128,7 +130,7 @@ class RecitationModule(private val context: ReactApplicationContext) : ReactCont
         null
     }
     @ReactMethod fun showSharingSettings(promise: Promise) = command(promise) {
-        val activity = checkNotNull(currentActivity) { "No foreground activity" }
+        val activity = checkNotNull(reactApplicationContext.currentActivity) { "No foreground activity" }
         val c = checkNotNull(client) { "Configure first" }
         AlertDialog.Builder(activity).setTitle("Quran Lab recording sharing")
             .setView(SharingSettingsView(activity, c)).setPositiveButton("Close", null).show()

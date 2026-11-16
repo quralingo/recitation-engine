@@ -48,8 +48,9 @@ end
 Run `pod install`, open the app's `.xcworkspace` and let Xcode resolve packages.
 With static pods, QuralingoRecitation owns the SDK product dependency and Xcode
 archives the SDK implementation into that pod. The helper removes beta.3's direct
-SDK product dependencies/link entries from consuming app targets and adds an
-SDK-resource copy phase (including the privacy manifest). The app links only the
+SDK product dependencies/link entries from consuming app targets. Beta.5 also
+removes beta.4 resource-copy phases; Xcode automatically propagates the upstream
+SPM resource bundle, including its privacy manifest. The app links only the
 pod; linking the SDK again would duplicate its objects. It saves those user-project
 changes. With
 a dynamic pod it keeps linkage on that framework as before. It does not change

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.0-beta.5
+
+- Download/cache the Android model with SDK prefetch before opening it on fresh installs.
+- Align exact barless phoneme streams against expected word boundaries, retaining
+  confidence checks and provisional streaming feedback.
+- Validate CPU/auto external-audio replay and the Android microphone/UI path on
+  Android 36 arm64. Auto selected CPU; this does not validate GPU or iOS recognition.
+
+- Remove beta.4's redundant SDK resource-copy phases, including duplicates on migration.
+  Xcode owns the automatic SPM bundle copy; this avoids duplicate bundle outputs.
+- Preserve sole implementation ownership in the static pod, SDK dependency/build
+  ordering, unrelated targets/linker flags and SDK pins (Apple 3.1.4, Android 3.1.5).
+- Read the foreground Activity from ReactApplicationContext for RN 0.84 compatibility.
+- Extend migration tests for duplicate legacy phases and unrelated target isolation.
+- Android debug/release builds and official-SDK static iOS fixtures validated;
+  physical-device and iOS microphone recitation still require validation.
+
 ## 0.1.0-beta.4 (unpublished)
 
 - Fix beta.3's actual 8,725-duplicate-symbol failure. Xcode archives SPM objects into

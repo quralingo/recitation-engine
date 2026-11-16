@@ -1,8 +1,6 @@
 # Call AFTER react_native_post_install. Xcode archives SPM implementations into
 # static pods even without a Frameworks phase entry. The POD must own SDK linkage;
-# consumers link that pod and copy resources, never link the SDK a second time.
-require 'pathname'
-require 'shellwords'
+# consumers link that pod. Xcode owns SPM resources; do not add a second producer.
 module QuralingoRecitationSPM
   URL = 'https://github.com/Quran-Lab/tajweedformer-apple'.freeze
   PRODUCT = 'TajweedFormer'.freeze
@@ -95,22 +93,12 @@ module QuralingoRecitationSPM
     end
   end
 
-  def self.copy_resources(project, target)
-    phases = target.shell_script_build_phases.select { |p| p.name == RESOURCE_PHASE }
-    phase = phases.shift || target.new_shell_script_build_phase(RESOURCE_PHASE)
-    phases.each(&:remove_from_project)
-    # Canonicalize both sides: /var and /tmp are symlinks on macOS, so lexical
-    # relative paths can otherwise traverse to /private/Volumes instead of /Volumes.
-    relative = Pathname.new(__dir__).join('copy_sdk_resources.sh').realpath
-      .relative_path_from(Pathname.new(project.path).dirname.realpath).to_s
-    phase.shell_path = '/bin/sh'
-    phase.shell_script = '/bin/sh "${PROJECT_DIR}"/' + Shellwords.escape(relative) + "\n"
-    phase.input_paths = ["${BUILT_PRODUCTS_DIR}/#{RESOURCE_BUNDLE}", "${PROJECT_DIR}/#{relative}"]
-    phase.output_paths = ["${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/#{RESOURCE_BUNDLE}"]
-    # Contents of a bundle can change without the directory timestamp changing.
-    # Always copy; inputs/outputs still declare access for script sandboxing.
-    phase.always_out_of_date = '1'
+  # Xcode propagates the SPM bundle through the retained pod product dependency.
+  # beta.4's second producer conflicts before compilation, even on fresh builds.
+  def self.remove_resource_copy_phases(target)
+    target.shell_script_build_phases.select { |p| p.name == RESOURCE_PHASE }.each(&:remove_from_project)
   end
+
 end
 
 def quralingo_recitation_spm(installer)
@@ -130,7 +118,7 @@ def quralingo_recitation_spm(installer)
     next unless static
     hosts.each do |host_project, host_target|
       QuralingoRecitationSPM.remove_host_link(host_project, host_target)
-      QuralingoRecitationSPM.copy_resources(host_project, host_target)
+      QuralingoRecitationSPM.remove_resource_copy_phases(host_target)
     end
   end
   # CocoaPods saves Pods.xcodeproj after post_install; user project edits need saving too.

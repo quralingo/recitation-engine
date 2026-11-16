@@ -65,3 +65,24 @@ test('PCM16LE conversion respects signed limits, offsets and alignment', () => {
   assert.deepEqual([...pcm16leToFloat32(bytes)], [-1, 0, 32767 / 32768]);
   assert.throws(() => pcm16leToFloat32(Uint8Array.of(1)));
 });
+
+test('barless exact ayah is segmented into its expected words', () => {
+  const r = alignWords([word('one', 'a', 'b'), word('two', 'c')], decoded(['a', 'b', 'c'], { isFinal: true }), 0);
+  assert.deepEqual(r.map(w => w.state), ['correct', 'correct']);
+  assert.deepEqual(r.map(w => w.recognizedPhonemes), [['a', 'b'], ['c']]);
+});
+test('barless streaming closes only boundaries supported by settled following phones', () => {
+  const expected = [word('one', 'a', 'b'), word('two', 'c', 'd')];
+  const r = alignWords(expected, decoded(['a', 'b', 'c'], { settled: 3 }), 0);
+  assert.equal(r[0].state, 'correct');
+  assert.equal(r[1].state, 'pending');
+  const tentative = alignWords(expected, decoded(['a', 'b', 'c'], { settled: 2 }), 0);
+  assert.ok(tentative.every(w => !w.committed));
+});
+test('barless mismatch, extra audio, silence and low confidence cannot fabricate correct words', () => {
+  const expected = [word('one', 'a', 'b'), word('two', 'c')];
+  for (const names of [[], ['a', 'x', 'c'], ['a', 'b', 'c', 'x']]) {
+    assert.ok(alignWords(expected, decoded(names, { isFinal: true }), 0).every(w => w.state !== 'correct'));
+  }
+  assert.ok(alignWords(expected, decoded(['a', 'b', 'c'], { isFinal: true, confidence: .5 }), 0).every(w => w.state !== 'correct'));
+});
