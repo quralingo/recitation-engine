@@ -38,10 +38,16 @@ Tanzil's own terms. No SDK model or credentials are included.
 | `tanzil-uthmani-source.txt` | Original source text, verbatim, including its notice; for audit/reproduction |
 | `LICENSE`, `SOURCE-NOTICE.md` | Redistribution terms/attribution |
 
-Keep provenance/license information with the app's bundled data. Runtime matching
-needs only the relevant surah JSON; Python and the source text need not run on the
-device. Static Metro require() paths are simplest; a host may implement its own
-asset-loading provider through `AyahReferenceProvider`. No app networking is added.
+From beta.2, all `surahs/*.json` ships inside npm. getRecitation() automatically
+selects the built-in provider and resolves the requested surah lazily using internal
+static Metro require() paths. No app copying or require() calls are needed. Native
+key metadata is described in README. start() loads the SDK model automatically.
+The optional attribute/ruling/word-span sidecars remain available in the source
+repository/data archive rather than the default npm tarball. The npm package keeps
+the provenance manifest, license, source notice and original text for auditing.
+Python and that source text are not evaluated on the device. A host may still use
+its own provider through `getRecitation({referenceProvider})` or change providers
+between sessions. Explicit ExpectedWord[]/ExpectedExercise bypass Quran lookup.
 
 ## Word indices and reading context
 

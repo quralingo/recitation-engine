@@ -7,12 +7,15 @@ release. No QuranLingo app repository was modified.
 
 - TypeScript 5.9.2 strict typecheck against real React Native 0.84.1 declarations.
 - TypeScript declaration/JavaScript build.
-- 28 Node tests: provisional/settled boundaries, confidence abstention, substitutions,
+- 37 Node tests: provisional/settled boundaries, confidence abstention, substitutions,
   unrelated audio, omissions, repeated-sequence ambiguity, late provisional evidence,
   PCM16 conversion, lifecycle failures, reference fallback, replay, stale/final events,
   external input validation/order/backpressure and SDK rate validation. New checks
   validate every generated artifact hash, all 6,236 ayah lookups, vocabulary/context
   rejection, reference provenance, offline fallback and educator-exercise behavior.
+  Default-start tests cover bundled lookup of all ayat, automatic native configure
+  and model reuse, missing-key/download recovery, singleton options and the unchanged
+  explicit word/phoneme route. Pack inspection verifies all 114 JSON modules ship.
 - 10 official Quran Lab tj3 renderer tests passed against the pinned source and
   its original text. The generator verifies all pinned input Git blob hashes,
   validates the text/vocabulary SHA-256, and checks full-ayah vs per-word rendered
@@ -31,7 +34,7 @@ transitive dependency. The actual TypeScript, React Native and React declaration
 tarballs were available in the local npm cache and used for the checks above;
 no synthetic React Native types were used. A package-lock.json was subsequently
 created in the user's local publication workflow. This update uses the installed
-TypeScript/RN dependencies and preserves that lockfile while bumping to beta.1.
+TypeScript/RN dependencies and preserves that lockfile while bumping to beta.2.
 
 Native SDK artifacts could not be resolved, and no app-specific approved SDK keys
 were supplied. Therefore Android/iOS compilation, native linkage, runtime microphone

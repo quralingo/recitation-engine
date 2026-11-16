@@ -2,6 +2,7 @@ package com.quralingo.recitation
 
 import ai.quranlab.tajweedformer.*
 import android.app.AlertDialog
+import android.content.pm.PackageManager
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import kotlinx.coroutines.*
@@ -38,9 +39,13 @@ class RecitationModule(private val context: ReactApplicationContext) : ReactCont
     }
     @ReactMethod fun configure(config: ReadableMap, promise: Promise) = command(promise) {
         check(!running) { "Stop the current session" }
+        val suppliedKey = if (config.hasKey("apiKey") && !config.isNull("apiKey")) config.getString("apiKey") else null
+        val key = suppliedKey ?: context.packageManager.getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
+            .metaData?.getString("com.quralingo.recitation.API_KEY")
+        check(!key.isNullOrBlank()) { "missing_configuration: set com.quralingo.recitation.API_KEY in application metadata or call configure with apiKey" }
         chunksJob?.cancelAndJoin(); eventsJob?.cancelAndJoin()
         client?.close(); client = null; model = null; session = null; sessionId = null
-        client = TajweedClient(context, checkNotNull(config.getString("apiKey")), TajweedClientOptions(
+        client = TajweedClient(context, key, TajweedClientOptions(
             analytics = TajweedClientOptions.Analytics.OFF,
             audience = if (config.getString("audience") == "general") TajweedClientOptions.Audience.GENERAL else TajweedClientOptions.Audience.CHILDREN))
         null

@@ -26,6 +26,10 @@ export interface ExpectedExercise {
 export interface AyahReferenceProvider {
   resolveAyah(request: ExpectedAyah, model: ModelInfo): Promise<readonly ExpectedWord[]> | readonly ExpectedWord[];
 }
+export interface RecitationEngineOptions {
+  /** Bundled Hafs by default. Use sdk to rely only on the SDK's optional reference. */
+  referenceProvider?: AyahReferenceProvider | 'bundled-hafs' | 'sdk';
+}
 export interface Token {
   id: number; name: string; firstMs: number; peakMs: number; lastMs: number;
   confidence: number | null;
@@ -68,7 +72,8 @@ export interface Thresholds {
   maxIncorrectEditRatio: number;
 }
 export interface Configuration {
-  apiKey: string;
+  /** Optional when the host has configured its platform key in native app metadata. */
+  apiKey?: string;
   audience?: 'children' | 'general';
 }
 export interface SessionOptions {

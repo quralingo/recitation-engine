@@ -7,15 +7,14 @@ function fixture(overrides = {}) {
   const bridge = { configure: async () => {}, loadModel: async () => info, reference: async () => [['a']],
     start: async (...args) => { calls.push(args); }, pushAudio: async () => {}, cancel: async () => {},
     stop: async id => chunk(id, true), showSharingSettings: async () => {}, ...overrides };
-  return { engine: new RecitationEngine(bridge), calls, bridge, info };
+  return { engine: new RecitationEngine(bridge, {referenceProvider: 'sdk'}), calls, bridge, info };
 }
 const expected = [{ id: 'one', text: 'label', phonemes: ['a'] }];
 const chunk = (sessionId, isFinal = false, name = 'a') => ({ sessionId, index: 0, startMs: 0, endMs: 40, backend: 'cpu', heads: [],
   decoded: { text: name, settled: 1, isFinal, tokens: [{id: 2, name, firstMs: 0, peakMs: 0, lastMs: 40, confidence: .99}] } });
 async function ready(overrides) { const f = fixture(overrides); await f.engine.configure({ apiKey: 'test' }); await f.engine.loadModel(); return f; }
-test('lifecycle requires a loaded model and rejects overlapping sessions', async () => {
-  const { engine } = fixture(); await assert.rejects(engine.start({ expected }));
-  await engine.configure({ apiKey: 'test' }); await engine.loadModel(); await engine.start({ expected });
+test('lifecycle prepares the model automatically and rejects overlapping sessions', async () => {
+  const { engine } = fixture(); await engine.start({ expected });
   await assert.rejects(engine.start({ expected })); await assert.rejects(engine.configure({ apiKey: 'test' }));
 });
 test('reference absence fails explicitly and caller phonemes are vocabulary checked', async () => {

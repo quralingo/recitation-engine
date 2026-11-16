@@ -1,10 +1,13 @@
 import { alignWords, thresholds } from './alignment';
+import { createBundledHafsReferenceProvider } from './bundled-reference';
 import type { AyahReferenceProvider, Configuration, ExpectedExercise, ExpectedWord, ModelInfo, NativeBridge, NativeChunk, RecitationResult,
-  SessionEvent, SessionOptions, Subscription } from './types';
+  RecitationEngineOptions, SessionEvent, SessionOptions, Subscription } from './types';
 
 export class RecitationEngine {
   private model?: ModelInfo;
   private referenceProvider?: AyahReferenceProvider;
+  private configured = false;
+  private pendingStart?: { cancelled: boolean; finished: Promise<void>; finish(): void };
   private session?: { id: string; words: ExpectedWord[]; options: SessionOptions; active: boolean; final?: RecitationResult;
     exercise?: RecitationResult['exercise'] };
   private sequence = 0;
@@ -13,7 +16,19 @@ export class RecitationEngine {
   private eventListeners = new Set<(e: SessionEvent) => void>();
   private pendingAudio = 0;
   private audioTail: Promise<void> = Promise.resolve();
-  constructor(private readonly bridge: NativeBridge) {}
+  constructor(private readonly bridge: NativeBridge, options: RecitationEngineOptions = {}) {
+    this.referenceProvider = options.referenceProvider === 'sdk' ? undefined
+      : !options.referenceProvider || options.referenceProvider === 'bundled-hafs'
+        ? createBundledHafsReferenceProvider() : options.referenceProvider;
+  }
+
+  private async ensureModel(): Promise<ModelInfo> {
+    if (!this.configured) {
+      await this.bridge.configure({ audience: 'children' });
+      this.configured = true;
+    }
+    return this.model ??= await this.bridge.loadModel();
+  }
 
   /** Register app-bundled reference data without adding runtime networking to this package. */
   setReferenceProvider(provider?: AyahReferenceProvider): void {
@@ -26,71 +41,82 @@ export class RecitationEngine {
     this.busy = true;
     try { return await action(); } finally { this.busy = false; }
   }
-  configure(config: Configuration): Promise<void> {
+  configure(config: Configuration = {}): Promise<void> {
     return this.exclusive(async () => {
       if (this.session?.active) throw new Error('Stop the session before configuring');
-      if (!config.apiKey.trim()) throw new Error('apiKey is required');
+      if (config.apiKey !== undefined && !config.apiKey.trim()) throw new Error('apiKey must be nonempty when supplied');
       await this.bridge.configure({ ...config, audience: config.audience ?? 'children' });
+      this.configured = true;
       this.model = undefined; this.session = undefined;
     });
   }
   loadModel(): Promise<ModelInfo> {
     return this.exclusive(async () => {
       if (this.session?.active) throw new Error('Stop the session before loading a model');
-      return this.model = await this.bridge.loadModel();
+      return this.ensureModel();
     });
   }
   start(options: SessionOptions): Promise<string> {
     return this.exclusive(async () => {
-      const model = this.model;
-      if (!model) throw new Error('Call configure() and loadModel() first');
       if (this.session?.active) throw new Error('A session is already running');
-      thresholds(options.thresholds);
-      const sampleRate = options.sampleRate ?? 16000;
-      if (![8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000].includes(sampleRate)) throw new Error('Unsupported SDK sampleRate');
-      const endOnSilenceMs = options.endOnSilenceMs ?? 1500;
-      if (!Number.isInteger(endOnSilenceMs) || (endOnSilenceMs !== 0 && (endOnSilenceMs < 500 || endOnSilenceMs > 60000))) throw new Error('endOnSilenceMs must be 0 or 500..60000');
-      let words: ExpectedWord[];
-      if (Array.isArray(options.expected)) {
-        words = options.expected.map(w => ({ ...w, phonemes: [...w.phonemes] }));
-      } else if ('kind' in options.expected && options.expected.kind === 'exercise') {
-        if (!options.expected.id?.trim()) throw new Error('Exercise id is required');
-        const exercise = options.expected as ExpectedExercise;
-        if (exercise.focus?.some(f => !['ghunna', 'gemination', 'qalqalah', 'madd', 'phonemes'].includes(f))) throw new Error('Unknown exercise focus');
-        words = exercise.words.map(w => ({ ...w, phonemes: [...w.phonemes] }));
-      } else {
-        const ayah = options.expected as import('./types').ExpectedAyah;
-        if (!Number.isInteger(ayah.surah) || !Number.isInteger(ayah.ayah) || ayah.surah < 1 || ayah.surah > 114 || ayah.ayah < 1) throw new Error('Invalid ayah');
-        if (ayah.reading && ayah.reading !== 'ayah-end') throw new Error('Unsupported reading context');
-        if (!model.referenceAvailable && this.referenceProvider) {
-          const resolved = await this.referenceProvider.resolveAyah(ayah, model);
-          words = resolved.map(w => ({ ...w, phonemes: [...w.phonemes] }));
-        } else {
-          if (!model.referenceAvailable) throw new Error('reference_missing: register bundled Hafs data or supply verified phonemes');
-          const phones = await this.bridge.reference(ayah.surah, ayah.ayah);
-          if (ayah.words && ayah.words.length !== phones.length) throw new Error('Display word count differs from SDK reference');
-          words = phones.map((phonemes, i) => ({ id: ayah.words?.[i]?.id ?? `${ayah.surah}:${ayah.ayah}:${i + 1}`,
-            text: ayah.words?.[i]?.text, phonemes }));
-        }
-      }
-      if (!words.length || words.length > 256 || words.reduce((n, w) => n + w.phonemes.length, 0) > 2048) throw new Error('Expected sequence must have 1..256 words and at most 2048 phonemes');
-      const ids = new Set<string>();
-      const vocabulary = new Set(model.tokens.filter((_, i) => i !== model.blank && i !== model.wordBar));
-      for (const w of words) {
-        if (!w.id || ids.has(w.id) || !w.phonemes.length || w.phonemes.some(p => !vocabulary.has(p))) throw new Error('Words need unique ids and nonempty phonemes from the model vocabulary (no blank or word bars)');
-        ids.add(w.id);
-      }
-      const id = `recitation-${++this.sequence}`;
-      const expected = options.expected;
-      const exercise = !Array.isArray(expected) && 'kind' in expected && expected.kind === 'exercise'
-        ? { id: expected.id, text: expected.text, focus: expected.focus ? [...expected.focus] : undefined } : undefined;
-      this.session = { id, words, options: { ...options, thresholds: thresholds(options.thresholds) }, exercise, active: true };
+      let finish!: () => void;
+      const request = { cancelled: false, finished: new Promise<void>(resolve => { finish = resolve; }), finish: () => finish() };
+      this.pendingStart = request;
       try {
-        await this.bridge.start(id, { source: options.source ?? 'microphone', sampleRate,
-          context: options.context ?? 'c16_l64', backend: options.backend ?? 'auto', endOnSilenceMs,
-          allHeads: options.allHeads ?? true });
-      } catch (error) { this.session = undefined; throw error; }
-      return id;
+        const model = await this.ensureModel();
+        if (request.cancelled) throw new Error('cancelled: session start was cancelled');
+        thresholds(options.thresholds);
+        const sampleRate = options.sampleRate ?? 16000;
+        if (![8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000].includes(sampleRate)) throw new Error('Unsupported SDK sampleRate');
+        const endOnSilenceMs = options.endOnSilenceMs ?? 1500;
+        if (!Number.isInteger(endOnSilenceMs) || (endOnSilenceMs !== 0 && (endOnSilenceMs < 500 || endOnSilenceMs > 60000))) throw new Error('endOnSilenceMs must be 0 or 500..60000');
+        let words: ExpectedWord[];
+        if (Array.isArray(options.expected)) {
+          words = options.expected.map(w => ({ ...w, phonemes: [...w.phonemes] }));
+        } else if ('kind' in options.expected && options.expected.kind === 'exercise') {
+          if (!options.expected.id?.trim()) throw new Error('Exercise id is required');
+          const exercise = options.expected as ExpectedExercise;
+          if (exercise.focus?.some(f => !['ghunna', 'gemination', 'qalqalah', 'madd', 'phonemes'].includes(f))) throw new Error('Unknown exercise focus');
+          words = exercise.words.map(w => ({ ...w, phonemes: [...w.phonemes] }));
+        } else {
+          const ayah = options.expected as import('./types').ExpectedAyah;
+          if (!Number.isInteger(ayah.surah) || !Number.isInteger(ayah.ayah) || ayah.surah < 1 || ayah.surah > 114 || ayah.ayah < 1) throw new Error('Invalid ayah');
+          if (ayah.reading && ayah.reading !== 'ayah-end') throw new Error('Unsupported reading context');
+          if (this.referenceProvider) {
+            const resolved = await this.referenceProvider.resolveAyah(ayah, model);
+            words = resolved.map(w => ({ ...w, phonemes: [...w.phonemes] }));
+          } else {
+            if (!model.referenceAvailable) throw new Error('reference_missing: register bundled Hafs data or supply verified phonemes');
+            const phones = await this.bridge.reference(ayah.surah, ayah.ayah);
+            if (ayah.words && ayah.words.length !== phones.length) throw new Error('Display word count differs from SDK reference');
+            words = phones.map((phonemes, i) => ({ id: ayah.words?.[i]?.id ?? `${ayah.surah}:${ayah.ayah}:${i + 1}`,
+              text: ayah.words?.[i]?.text, phonemes }));
+          }
+        }
+        if (!words.length || words.length > 256 || words.reduce((n, w) => n + w.phonemes.length, 0) > 2048) throw new Error('Expected sequence must have 1..256 words and at most 2048 phonemes');
+        const ids = new Set<string>();
+        const vocabulary = new Set(model.tokens.filter((_, i) => i !== model.blank && i !== model.wordBar));
+        for (const w of words) {
+          if (!w.id || ids.has(w.id) || !w.phonemes.length || w.phonemes.some(p => !vocabulary.has(p))) throw new Error('Words need unique ids and nonempty phonemes from the model vocabulary (no blank or word bars)');
+          ids.add(w.id);
+        }
+        const id = `recitation-${++this.sequence}`;
+        if (request.cancelled) throw new Error('cancelled: session start was cancelled');
+        const expected = options.expected;
+        const exercise = !Array.isArray(expected) && 'kind' in expected && expected.kind === 'exercise'
+          ? { id: expected.id, text: expected.text, focus: expected.focus ? [...expected.focus] : undefined } : undefined;
+        this.session = { id, words, options: { ...options, thresholds: thresholds(options.thresholds) }, exercise, active: true };
+        try {
+          await this.bridge.start(id, { source: options.source ?? 'microphone', sampleRate,
+            context: options.context ?? 'c16_l64', backend: options.backend ?? 'auto', endOnSilenceMs,
+            allHeads: options.allHeads ?? true });
+          if (request.cancelled) {
+            await this.bridge.cancel(id);
+            throw new Error('cancelled: session start was cancelled');
+          }
+        } catch (error) { this.session = undefined; throw error; }
+        return id;
+      } finally { this.pendingStart = undefined; request.finish(); }
     });
   }
   /** Float32 mono -1..1. Await each call; chunks are limited to one second. */
@@ -119,6 +145,10 @@ export class RecitationEngine {
     });
   }
   cancel(): Promise<void> {
+    if (this.pendingStart) {
+      this.pendingStart.cancelled = true;
+      return this.pendingStart.finished;
+    }
     return this.exclusive(async () => {
       const s = this.session;
       if (!s) return;
@@ -137,6 +167,7 @@ export class RecitationEngine {
   }
   /** Bridge entry point. Session ids discard late events from previous takes. */
   acceptChunk(chunk: NativeChunk): void {
+    if (this.pendingStart?.cancelled) return;
     const s = this.session;
     if (!s || chunk.sessionId !== s.id || s.final) return;
     // Bound alignment memory/work for long or unrelated recitations; keep raw output intact.
@@ -151,6 +182,7 @@ export class RecitationEngine {
     for (const listener of this.resultListeners) listener(result);
   }
   acceptEvent(event: SessionEvent): void {
+    if (this.pendingStart?.cancelled) return;
     if (event.sessionId !== this.session?.id) return;
     if (event.type === 'error' || event.type === 'ended') this.session.active = false;
     for (const listener of this.eventListeners) listener(event);

@@ -39,7 +39,11 @@ class QuralingoRecitation: RCTEventEmitter {
     @objc(configure:resolver:rejecter:)
     func configure(_ config: NSDictionary, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         command(resolve, reject) { [self] in
-            guard !running, let key = config["apiKey"] as? String else { throw failure("Stop the session and provide an apiKey") }
+            guard !running else { throw failure("Stop the current session") }
+            let configuredKey = config["apiKey"] as? String ?? Bundle.main.object(forInfoDictionaryKey: "QuranLabApiKey") as? String
+            guard let key = configuredKey, !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw failure("missing_configuration: set QuranLabApiKey in Info.plist or call configure with apiKey")
+            }
             chunkTask?.cancel(); eventTask?.cancel()
             await model?.close()
             model = nil; session = nil; sessionId = nil; client?.close(); client = nil

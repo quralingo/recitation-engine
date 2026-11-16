@@ -3,9 +3,10 @@
 Generated from pinned Quran Lab quran-g2p source using its official 38-token tj3
 renderer. See manifest.json for revision, input hashes, configuration and file hashes.
 
-Copy the required `surahs/*.json` files into the mobile app. Register them with
-`createHafsReferenceProvider` and `engine.setReferenceProvider` in package beta.1
-or later. No reference files are automatically downloaded by this package.
+From beta.2, `surahs/*.json` ships inside npm and is used automatically by
+getRecitation(). No app-side copies, imports or registration are required. Beta.1
+required manual registration; that older setup is now optional for custom providers.
+Reference data is local; the SDK still downloads its model on first use.
 
 All 6,236 ayat are covered. Readings are full-ayah start through ayah-end waqf,
 with connected interior words. Do not crop for isolated words or cross-ayah joins.

@@ -54,14 +54,41 @@ Each host needs approved Android/iOS keys for its package/bundle identifiers fro
 https://sdk.quranlab.ai. Never publish keys in this package. The official Client
 handles initial model download, signature checking, storage and access refresh.
 
+Set the host's key once in native app configuration. No per-screen configure call
+is required after that:
+
+Android, inside the host manifest's `<application>`:
+
+```xml
+<meta-data android:name="com.quralingo.recitation.API_KEY"
+           android:value="@string/quran_lab_api_key" />
+```
+
+Supply `quran_lab_api_key` through your build configuration. For example, in a
+Groovy app build.gradle `defaultConfig` block:
+
+```groovy
+resValue 'string', 'quran_lab_api_key', project.findProperty('QURAN_LAB_API_KEY') ?: ''
+```
+
+iOS, in the host Info.plist:
+
+```xml
+<key>QuranLabApiKey</key>
+<string>$(QURAN_LAB_API_KEY)</string>
+```
+
+Set `QURAN_LAB_API_KEY` in the host's build settings/xcconfig. Use the appropriate
+platform-bound key and keep actual keys out of this repository. Alternatively call
+`engine.configure({ apiKey: platformKey, audience: 'children' })` once at app startup.
+Missing keys cause `start()` to reject with a `missing_configuration` message.
+
 ## Use
 
 ```ts
 import { getRecitation } from '@quranlingoapp/recitation';
 
 const engine = getRecitation(); // One per JS runtime/process.
-await engine.configure({ apiKey: platformKey, audience: 'children' });
-const model = await engine.loadModel();
 
 const results = engine.onResult(result => {
   // Replace the preceding snapshot in your UI.
@@ -71,10 +98,27 @@ const results = engine.onResult(result => {
 });
 const events = engine.onEvent(event => handleSessionEvent(event));
 
-await engine.start({ expected: verifiedWords });
+await engine.start({ expected: { surah: 1, ayah: 1 } });
 const final = await engine.stop(); // Or await natural final via onResult.
 results.remove();
 events.remove();
+```
+
+Hafs references for all 114 surahs ship inside npm and are selected automatically.
+`start()` initializes the SDK from native key configuration and loads the model on
+first use; later sessions reuse it. The first call can take time for the SDK's
+verified model download, so show a loading state while awaiting it. Reference JSON
+is already bundled and requires no download. Optionally call `engine.loadModel()`
+at app launch to warm the model before the first session.
+Call `cancel()` when leaving during startup too: it prevents a delayed microphone
+start and, if native start is already in progress, cancels that session before
+resolving. Cancellation waits for an in-flight SDK load/start operation to finish;
+it does not abort the SDK's model download.
+
+The existing explicit-phoneme route remains available:
+
+```ts
+await engine.start({ expected: verifiedWords });
 ```
 
 `verifiedWords` is an array of `{ id, text?, phonemes: string[] }`. `text` is a display
@@ -90,40 +134,40 @@ Alternatively:
 await engine.start({ expected: { surah: 1, ayah: 1, words: displayLabels } });
 ```
 
-This downloads/verifies the SDK reference on demand **if available**, and maps its
-units to words (Android word bars; Apple explicit word starts). Current upstream
-3.1.5/3.1.4 model builds expose no reference. Register an app-bundled Hafs reference
-provider as shown below, or supply reviewed word phonemes. Without either, the
-request fails explicitly with `reference_missing`. `loadModel()` exposes the
+The default uses the package's pinned Hafs reference. Current upstream
+3.1.5/3.1.4 model builds expose no SDK reference, so one is not required.
+`loadModel()` exposes the
 vocabulary, blank/bar IDs, calibration JSON/hash and reference availability.
 
-## Offline Hafs reference and educator exercises (beta.1)
+## Built-in Hafs reference and educator exercises
 
 The source repository now includes `mobile-reference/`: deterministic precomputed
 data for all 114 surahs / 6,236 ayat, generated from Quran Lab's pinned `quran-g2p`
 revision and its official **tj3** renderer. There is no handwritten letter mapping.
-The 114 phoneme JSON files total about 1.6 MB and are intentionally distributed
-separately from npm so apps can bundle only what they need.
+The 114 phoneme JSON files total about 1.6 MB and ship inside the npm package.
+Metro discovers the static require paths inside the package. Only the requested
+surah is loaded/validated by the provider on demand; applications need no JSON
+imports, copied assets, reference registration or filesystem/network loading code.
 
-Copy `mobile-reference/surahs/` into the app's assets. For example:
+An alternative reference provider can be selected on the first singleton call:
 
 ```ts
-import { getRecitation, createHafsReferenceProvider } from '@quranlingoapp/recitation';
-import type { HafsReferenceBundle } from '@quranlingoapp/recitation';
-
-const fatiha = require('./assets/recitation/surahs/001.json') as HafsReferenceBundle;
-const engine = getRecitation();
-engine.setReferenceProvider(createHafsReferenceProvider(fatiha));
-// Configure and load the native model as usual, then:
-await engine.start({ expected: { surah: 1, ayah: 1 } });
+const engine = getRecitation({ referenceProvider: myReferenceProvider });
 ```
 
-Pass an array of bundles to support several surahs. The provider checks the entire
+Default is `referenceProvider: 'bundled-hafs'`. Use `'sdk'` to rely only on the
+SDK's optional table (missing table then rejects explicitly). Further calls to
+`getRecitation()` return the same engine; passing options after creation rejects
+to avoid silently changing another screen's engine. Use `setReferenceProvider()`
+between sessions to change it. An explicit provider takes precedence over the SDK
+table. Existing `createHafsReferenceProvider(bundleOrBundles)` remains available
+for callers with their own data-loading needs, but is not needed for normal use.
+
+The bundled provider checks the entire
 runtime model vocabulary, blank/bar IDs and V4 generation before returning phones;
 it rejects incompatibility instead of silently remapping sounds. It checks schema,
 provenance fields and token IDs, but does not cryptographically authenticate imported
-JSON at runtime. Verify manifest hashes during asset preparation. Register/swap
-providers between sessions; native SDK reference takes precedence when available.
+JSON at runtime. Export/package tests verify manifest hashes before release.
 
 These files describe **full-ayah ibtida to ayah-end waqf**, with connected words
 inside each ayah, Hafs/Shatibiyyah and upstream default choices. They cannot be

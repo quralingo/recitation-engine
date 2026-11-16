@@ -1,12 +1,10 @@
-import { getRecitation, createHafsReferenceProvider } from '@quranlingoapp/recitation';
-import type { HafsReferenceBundle, ExpectedWord } from '@quranlingoapp/recitation';
+import { getRecitation } from '@quranlingoapp/recitation';
+import type { ExpectedWord } from '@quranlingoapp/recitation';
 
-// Copy mobile-reference/surahs/001.json into your app first. Use a static Metro require.
-// const surah1 = require('./assets/recitation/001.json') as HafsReferenceBundle;
-export async function practiceAyah(surah1: HafsReferenceBundle) {
-  const engine = getRecitation(); // Already configured and model loaded by the app.
-  engine.setReferenceProvider(createHafsReferenceProvider(surah1));
-  return engine.start({ expected: {surah: 1, ayah: 1} });
+// The host supplies its SDK key once through native configuration (see README).
+export async function practiceAyah(surah: number, ayah: number) {
+  const engine = getRecitation();
+  return engine.start({ expected: {surah, ayah} });
 }
 
 export async function practiceEducatorPhrase(text: string, words: ExpectedWord[]) {
