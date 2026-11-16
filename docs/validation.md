@@ -23,10 +23,18 @@ release. No QuranLingo app repository was modified.
 - Ruby syntax of podspec and SPM helper; Xcodeproj test constructs, saves/reopens
   project, verifies exact SDK pin/link product, recovery from RN package-reference
   cleanup, module include paths and idempotence. Static-helper tests also pass for
-  static frameworks/libraries, host linking, migration, multiple consumers and
-  unchanged unrelated targets/settings. See docs/ios-static-linkage.md. The offline
+  static frameworks/libraries, sole pod SDK ownership, beta.3 host-link migration,
+  executed resource-copy phases, multiple consumers and unchanged unrelated
+  targets/settings. See docs/ios-static-linkage.md. The offline
   compile/link fixture was attempted but blocked by Xcode/SwiftPM sandbox cache
   permissions, so native static linkage is not yet build-proven here.
+- Beta.4 actual cached-object link regression: reproduced the consuming app's
+  8,725 duplicate symbols, then successfully re-linked its arm64 Debug simulator
+  image using the unchanged pod archive as sole SDK owner. Archive/link-map/nm checks
+  confirm one implementation; the copy script preserves all 15 real SDK resource
+  files, including PrivacyInfo.xcprivacy. This is not a fresh workspace build or
+  device run. Both fresh target configurations were attempted but blocked by
+  Xcode workspace/SwiftPM/CoreSimulator sandbox access; see beta4-validation.md.
 - Swift frontend syntax parse (not typecheck/link against the SDK).
 
 ## Environmental limits

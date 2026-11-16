@@ -1,10 +1,15 @@
-# Call AFTER react_native_post_install. Static pods compile against the SDK; the
-# consuming app links it once. Do not archive the SDK into a static pod as well.
+# Call AFTER react_native_post_install. Xcode archives SPM implementations into
+# static pods even without a Frameworks phase entry. The POD must own SDK linkage;
+# consumers link that pod and copy resources, never link the SDK a second time.
+require 'pathname'
+require 'shellwords'
 module QuralingoRecitationSPM
   URL = 'https://github.com/Quran-Lab/tajweedformer-apple'.freeze
   PRODUCT = 'TajweedFormer'.freeze
   POD = 'QuralingoRecitation'.freeze
   REQUIREMENT = { 'kind' => 'exactVersion', 'version' => '3.1.4' }.freeze
+  RESOURCE_BUNDLE = 'TajweedFormer_TajweedFormer.bundle'.freeze
+  RESOURCE_PHASE = '[QuralingoRecitation] Copy SDK Resources'.freeze
 
   def self.recitation_pod?(target)
     (target.respond_to?(:pod_name) && target.pod_name == POD) ||
@@ -71,6 +76,41 @@ module QuralingoRecitationSPM
       config.build_settings['SWIFT_INCLUDE_PATHS'] = paths | ['${SYMROOT}/${CONFIGURATION}${EFFECTIVE_PLATFORM_NAME}/']
     end
   end
+
+  def self.remove_host_link(project, target)
+    target.frameworks_build_phase.files.select { |f| our_product?(f.product_ref) }.each(&:remove_from_project)
+    target.package_product_dependencies.select { |p| our_product?(p) }.each do |product|
+      target.package_product_dependencies.delete(product)
+    end
+    # Remove only now-unused references to this SDK, keeping other products/targets intact.
+    project.root_object.package_references.to_a.each do |ref|
+      next unless ref.respond_to?(:repositoryURL) && ref.repositoryURL == URL
+      used = project.targets.any? do |t|
+        products = t.respond_to?(:package_product_dependencies) ? Array(t.package_product_dependencies) : []
+        phase = t.respond_to?(:frameworks_build_phase) ? t.frameworks_build_phase : nil
+        products.any? { |p| p.package == ref } ||
+          (phase && phase.files.any? { |f| f.product_ref && f.product_ref.package == ref })
+      end
+      project.root_object.package_references.delete(ref) unless used
+    end
+  end
+
+  def self.copy_resources(project, target)
+    phases = target.shell_script_build_phases.select { |p| p.name == RESOURCE_PHASE }
+    phase = phases.shift || target.new_shell_script_build_phase(RESOURCE_PHASE)
+    phases.each(&:remove_from_project)
+    # Canonicalize both sides: /var and /tmp are symlinks on macOS, so lexical
+    # relative paths can otherwise traverse to /private/Volumes instead of /Volumes.
+    relative = Pathname.new(__dir__).join('copy_sdk_resources.sh').realpath
+      .relative_path_from(Pathname.new(project.path).dirname.realpath).to_s
+    phase.shell_path = '/bin/sh'
+    phase.shell_script = '/bin/sh "${PROJECT_DIR}"/' + Shellwords.escape(relative) + "\n"
+    phase.input_paths = ["${BUILT_PRODUCTS_DIR}/#{RESOURCE_BUNDLE}", "${PROJECT_DIR}/#{relative}"]
+    phase.output_paths = ["${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/#{RESOURCE_BUNDLE}"]
+    # Contents of a bundle can change without the directory timestamp changing.
+    # Always copy; inputs/outputs still declare access for script sandboxing.
+    phase.always_out_of_date = '1'
+  end
 end
 
 def quralingo_recitation_spm(installer)
@@ -83,9 +123,15 @@ def quralingo_recitation_spm(installer)
   end
   targets.each do |target|
     static = QuralingoRecitationSPM.static?(installer, target)
+    # Preserve beta.3's successful pod compilation/archive graph. A static SPM
+    # product dependency itself makes Xcode archive SDK objects; no phase entry
+    # is needed. The defect was the ADDITIONAL product on the app target.
     QuralingoRecitationSPM.attach(project, target, link: !static)
     next unless static
-    hosts.each { |host_project, host_target| QuralingoRecitationSPM.attach(host_project, host_target, link: true) }
+    hosts.each do |host_project, host_target|
+      QuralingoRecitationSPM.remove_host_link(host_project, host_target)
+      QuralingoRecitationSPM.copy_resources(host_project, host_target)
+    end
   end
   # CocoaPods saves Pods.xcodeproj after post_install; user project edits need saving too.
   hosts.map(&:first).uniq.each { |host_project| host_project.save unless host_project == project }

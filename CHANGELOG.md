@@ -1,6 +1,21 @@
 # Changelog
 
-## 0.1.0-beta.3 (unpublished)
+## 0.1.0-beta.4 (unpublished)
+
+- Fix beta.3's actual 8,725-duplicate-symbol failure. Xcode archives SPM objects into
+  a static pod even without a Frameworks phase entry; the pod is now the sole SDK
+  owner and consuming apps no longer have a direct SDK product dependency/link.
+- Retain the pod's SDK dependency for proven module visibility/build ordering;
+  copy the complete upstream SDK resource bundle/privacy manifest into each app.
+- Migrate beta.3 app links idempotently without changing Firebase/static linkage,
+  existing linker flags, unrelated targets, SDK pins or recognition behavior.
+- Add actual archive/final-image/link-map/resource inspection and cached-object
+  replay tools. Reproduced 8,725 failures with beta.3 ownership; corrected real
+  arm64 simulator relink passes with one SDK implementation and 15 resources intact.
+- Full fresh Debug simulator/Release device builds remain unverified in this
+  sandbox; see docs/beta4-validation.md for evidence and exact host commands.
+
+## 0.1.0-beta.3
 
 - Support static-framework/static-library CocoaPods configurations: compile against
   the SDK from the pod and link its SPM product once in each consuming user target.

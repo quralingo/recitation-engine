@@ -1,6 +1,6 @@
 # iOS static CocoaPods linkage
 
-Available from 0.1.0-beta.3. The Podfile can keep:
+Fixed in 0.1.0-beta.4 (beta.3 had duplicate SDK ownership). The Podfile keeps:
 
 ```ruby
 use_frameworks! :linkage => :static
@@ -29,17 +29,23 @@ to archive the SDK and linking it in the app too can duplicate symbols.
 For static frameworks or static-library pods:
 
 1. Discover only aggregate targets that actually consume QuralingoRecitation.
-2. Keep the SDK product dependency on the pod for compilation/module visibility,
-   but remove this product's Link Binary With Libraries entry on that static pod.
-3. Add the exact SDK package/product and link entry to each consuming user target.
-   Xcode/SPM owns the final SDK link, its binary dependencies and resource bundles.
+2. Keep the SDK product dependency on the pod for compilation, module visibility,
+   build ordering AND implementation ownership. Xcode automatically archives the
+   SDK objects into this static pod, regardless of a Frameworks phase entry.
+3. Remove the SDK product dependency/link entry from consuming user targets. The
+   app links QuralingoRecitation only, whose archive already contains the SDK.
+   Add one owned resource-copy phase per consumer to copy the whole upstream
+   TajweedFormer_TajweedFormer.bundle, including PrivacyInfo.xcprivacy, to the app.
 4. Preserve existing linkage, Firebase flags, OTHER_LDFLAGS (including -ObjC),
    unrelated packages and unrelated targets. Do not embed static SDK frameworks.
 5. Save changed user projects during post_install. CocoaPods saves its Pods project.
 
 Repeated installs deduplicate package/product/link entries. References are repaired
 after React Native cleans old SPM package references. The helper also removes the
-old pod link entry when migrating from beta.2 to static linkage. A static setup with
+beta.3 app SDK dependencies/link entries when migrating to beta.4. Unused host SDK
+package references are removed only if no other target/product uses them. Existing
+linker flags are untouched. The resource phase has declared inputs/outputs and
+fails explicitly if the bundle/privacy manifest has not been built. A setup with
 no discoverable consumer fails with an actionable error rather than silently
 generating an app with unresolved SDK symbols.
 
@@ -58,17 +64,24 @@ ruby test/spm_link_fixture.rb
 
 The first two tests passed here. They exercise dynamic targets, static frameworks,
 plain static libraries, repeated installs, recovery after reference cleanup,
-migration from old pod linkage, multiple consumers, saved user-project changes,
-unrelated-target isolation and preservation of static/linker settings.
+beta.3 migration, multiple consumers, saved user-project changes, an executed
+resource-copy phase, unrelated-target isolation and unchanged static/linker settings.
 
-The third generates a local SDK stand-in with Swift, a C symbol and an SPM resource,
-then builds a static bridge/app and checks that the C symbol links once and the
-resource reaches the app. It does NOT use Quran Lab's SDK or establish device
-recognition compatibility. Its build could not complete in this execution sandbox:
+The third normally generates a local SDK stand-in with Swift, C and SPM resources,
+then builds a static bridge/app, inspects its archive, and checks that the C symbol
+links once and resources/privacy reach the app. --reproduce-beta3 is a negative
+control that must fail linking with duplicates. --official-sdk uses the pinned
+real SDK (no model/key needed to compile); add --device for Release arm64 device.
+These builds could not complete in this execution sandbox:
 Xcode/SwiftPM attempted to write its manifest diagnostics to a denied user cache
 directory; CoreSimulator service access was also unavailable. It is included in
 macOS CI and can run from the user's ordinary Terminal. Do not treat its attempted
-execution here as a successful compile/link test.
+execution here as a successful compile/link test. However, the real consuming
+app's already-compiled SDK/app objects WERE re-linked here: beta.3 reproduced all
+8,725 duplicates; beta.4 ownership linked successfully. ar/link-map/nm checks show
+one SDK implementation; executing the new copy script preserved all 15 upstream
+bundle files including the privacy manifest. See docs/beta4-validation.md for exact
+evidence paths, the limits of cached-object validation, and fresh-build commands.
 
 Before promoting this release, build the real app with its current static
 Firebase/GoogleSignIn configuration for simulator and physical iPhone, and archive
@@ -82,4 +95,5 @@ Upstream sources:
 - https://github.com/Quran-Lab/tajweedformer-apple/blob/3.1.4/Package.swift
 - https://github.com/Quran-Lab/tajweedformer-apple/blob/3.1.4/TajweedFormerCore.xcframework/Info.plist
 - React Native's installed scripts/cocoapods/spm.rb documents the original static
-  linkage caveat; this helper adds explicit host linkage rather than suppressing it.
+  linkage caveat. This helper uses sole pod ownership and explicit resource copy,
+  rather than adding a second host SDK product or suppressing duplicate symbols.

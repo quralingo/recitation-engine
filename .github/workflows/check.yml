@@ -23,4 +23,7 @@ jobs:
       - run: ruby test/spm_test.rb
       - run: ruby test/spm_static_test.rb
       - run: ruby test/spm_link_fixture.rb
+      - run: ruby test/spm_link_fixture.rb --reproduce-beta3
+      - run: ruby test/spm_link_fixture.rb --official-sdk
+      - run: ruby test/spm_link_fixture.rb --official-sdk --device
       - run: swiftc -frontend -parse ios/RecitationModule.swift

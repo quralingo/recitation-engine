@@ -46,10 +46,12 @@ end
 ```
 
 Run `pod install`, open the app's `.xcworkspace` and let Xcode resolve packages.
-With static pods, the helper adds a compile dependency to QuralingoRecitation and
-links the SPM product once in each consuming user target identified by CocoaPods.
-It saves those user-project changes. It removes old SDK link entries from the
-static pod to avoid archiving the same engine into both the pod and the app. With
+With static pods, QuralingoRecitation owns the SDK product dependency and Xcode
+archives the SDK implementation into that pod. The helper removes beta.3's direct
+SDK product dependencies/link entries from consuming app targets and adds an
+SDK-resource copy phase (including the privacy manifest). The app links only the
+pod; linking the SDK again would duplicate its objects. It saves those user-project
+changes. With
 a dynamic pod it keeps linkage on that framework as before. It does not change
 Firebase/GoogleSignIn dependencies, global linkage or linker flags. Do not add a
 second manually copied SDK or engine binary. Add `NSMicrophoneUsageDescription`
