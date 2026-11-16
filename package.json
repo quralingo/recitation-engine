@@ -1,0 +1,21 @@
+{
+  "name": "@quralingo/recitation",
+  "version": "0.1.0",
+  "description": "React Native streaming bridge for Quran Lab TajweedFormer V4",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": { "type": "git", "url": "https://github.com/quralingo/recitation.git" },
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "react-native": "src/index.ts",
+  "files": ["lib", "src", "android", "ios", "*.podspec", "react-native.config.js", "docs", "LICENSE", "NOTICE", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.cjs",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": { "react": ">=19.0.0", "react-native": ">=0.79.0 <0.86.0" },
+  "devDependencies": { "typescript": "5.9.2", "react-native": "0.84.1", "react": "19.2.3", "@types/react": "19.2.14" },
+  "publishConfig": { "access": "public" },
+  "engines": { "node": ">=22.11.0" }
+}

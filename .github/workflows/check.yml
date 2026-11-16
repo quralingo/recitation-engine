@@ -1,0 +1,24 @@
+name: Package checks
+on: [push, pull_request]
+jobs:
+  types-and-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts --legacy-peer-deps
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm pack --dry-run
+  apple-project-wiring:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - run: gem install xcodeproj -v 1.27.0 --no-document
+      - run: ruby test/spm_test.rb
+      - run: swiftc -frontend -parse ios/RecitationModule.swift
