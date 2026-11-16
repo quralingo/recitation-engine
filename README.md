@@ -1,4 +1,4 @@
-# @quralingo/recitation
+# @quranlingoapp/recitation
 
 Independent, typed React Native wrapper for **Quran Lab TajweedFormer V4**.
 Streams phoneme transcription, timing, confidence and raw Tajweed heads on the
@@ -12,7 +12,7 @@ it is not a tajweed certification or a religious ruling.
 ## Install
 
 ```sh
-npm install @quralingo/recitation
+npm install @quranlingoapp/recitation
 ```
 
 Use a native React Native app or Expo development build; Expo Go cannot load this
@@ -33,7 +33,7 @@ dependencies before integration. Add this to your `ios/Podfile` (merge into the
 existing post_install):
 
 ```ruby
-require_relative '../node_modules/@quralingo/recitation/ios/spm'
+require_relative '../node_modules/@quranlingoapp/recitation/ios/spm'
 
 use_frameworks! :linkage => :dynamic
 
@@ -57,7 +57,7 @@ handles initial model download, signature checking, storage and access refresh.
 ## Use
 
 ```ts
-import { getRecitation } from '@quralingo/recitation';
+import { getRecitation } from '@quranlingoapp/recitation';
 
 const engine = getRecitation(); // One per JS runtime/process.
 await engine.configure({ apiKey: platformKey, audience: 'children' });
@@ -112,7 +112,7 @@ Typical capture rates are 44.1/48 kHz; the SDK's engine converts as needed for i
 For QuranLingo's existing **16 kHz mono** stream, use `source: 'external'`:
 
 ```ts
-import { pcm16leToFloat32 } from '@quralingo/recitation';
+import { pcm16leToFloat32 } from '@quranlingoapp/recitation';
 await engine.start({ expected: verifiedWords, source: 'external', sampleRate: 16000 });
 await engine.pushAudio(pcm16leToFloat32(pcmBytes));
 ```

@@ -30,10 +30,12 @@ To upgrade:
    heuristic and cannot substitute for learner validation. Bump this package's
    version using semver; document breaking contract changes.
 
-Before initial publication, create/push the source to quralingo/recitation and
-verify ownership of the @quralingo npm scope. This workspace could not initialize
-git because .git creation was denied by the execution environment. No remote was
-created, commit made or npm package published here.
+The source repository is quralingo/recitation-engine. Publish the npm package as
+@quranlingoapp/recitation using the existing quranlingoapp organization (verified
+in npm settings on 2026-11-16). The authenticated personal account is quranlingo;
+it needs publishing rights in that organization. GitHub and npm names are separate.
+The initial beta version is 0.1.0-beta.0; failed publication under the old,
+nonexistent @quralingo scope did not publish that version.
 
 From an authenticated environment after native validation:
 
@@ -41,7 +43,7 @@ From an authenticated environment after native validation:
 npm install
 npm test
 npm pack --dry-run
-npm publish --access public
+npm publish --access public --tag beta
 ```
 
 Keep LICENSE and NOTICE in the tarball, inspect its file list, exclude keys/model

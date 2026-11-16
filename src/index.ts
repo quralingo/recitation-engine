@@ -10,7 +10,7 @@ let instance: RecitationEngine | undefined;
 export function getRecitation(): RecitationEngine {
   if (instance) return instance;
   const native = NativeModules.QuralingoRecitation;
-  if (!native) throw new Error('@quralingo/recitation is not linked. Rebuild the native app; Expo Go is unsupported.');
+  if (!native) throw new Error('@quranlingoapp/recitation is not linked. Rebuild the native app; Expo Go is unsupported.');
   const engine = new RecitationEngine(native as NativeBridge);
   const events = new NativeEventEmitter(native);
   events.addListener('QuralingoRecitationChunk', (c: NativeChunk) => engine.acceptChunk(c));

@@ -1,5 +1,5 @@
-import { getRecitation, pcm16leToFloat32 } from '@quralingo/recitation';
-import type { ExpectedWord } from '@quralingo/recitation';
+import { getRecitation, pcm16leToFloat32 } from '@quranlingoapp/recitation';
+import type { ExpectedWord } from '@quranlingoapp/recitation';
 
 // Supply phonemes from a reviewed reference matching model.tokens.
 // Never derive the Quran's recitation phonemes by splitting Arabic letters.
