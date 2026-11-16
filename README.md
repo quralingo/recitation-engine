@@ -92,10 +92,65 @@ await engine.start({ expected: { surah: 1, ayah: 1, words: displayLabels } });
 
 This downloads/verifies the SDK reference on demand **if available**, and maps its
 units to words (Android word bars; Apple explicit word starts). Current upstream
-3.1.5/3.1.4 model builds expose no reference: an ayah-only request fails explicitly
-with `reference_missing`; supply reviewed word phonemes instead. We do not bundle
-a substitute Quran text/phonetics dataset or invent one. `loadModel()` exposes the
+3.1.5/3.1.4 model builds expose no reference. Register an app-bundled Hafs reference
+provider as shown below, or supply reviewed word phonemes. Without either, the
+request fails explicitly with `reference_missing`. `loadModel()` exposes the
 vocabulary, blank/bar IDs, calibration JSON/hash and reference availability.
+
+## Offline Hafs reference and educator exercises (beta.1)
+
+The source repository now includes `mobile-reference/`: deterministic precomputed
+data for all 114 surahs / 6,236 ayat, generated from Quran Lab's pinned `quran-g2p`
+revision and its official **tj3** renderer. There is no handwritten letter mapping.
+The 114 phoneme JSON files total about 1.6 MB and are intentionally distributed
+separately from npm so apps can bundle only what they need.
+
+Copy `mobile-reference/surahs/` into the app's assets. For example:
+
+```ts
+import { getRecitation, createHafsReferenceProvider } from '@quranlingoapp/recitation';
+import type { HafsReferenceBundle } from '@quranlingoapp/recitation';
+
+const fatiha = require('./assets/recitation/surahs/001.json') as HafsReferenceBundle;
+const engine = getRecitation();
+engine.setReferenceProvider(createHafsReferenceProvider(fatiha));
+// Configure and load the native model as usual, then:
+await engine.start({ expected: { surah: 1, ayah: 1 } });
+```
+
+Pass an array of bundles to support several surahs. The provider checks the entire
+runtime model vocabulary, blank/bar IDs and V4 generation before returning phones;
+it rejects incompatibility instead of silently remapping sounds. It checks schema,
+provenance fields and token IDs, but does not cryptographically authenticate imported
+JSON at runtime. Verify manifest hashes during asset preparation. Register/swap
+providers between sessions; native SDK reference takes precedence when available.
+
+These files describe **full-ayah ibtida to ayah-end waqf**, with connected words
+inside each ayah, Hafs/Shatibiyyah and upstream default choices. They cannot be
+cropped to invent isolated-word pronunciation, arbitrary mid-ayah starts/stops or
+cross-ayah wasl. Word positions are the source engine's indices; reconcile them
+with your app's display edition before highlighting. See `docs/reference-data.md`.
+
+Educators can also provide free text as a display label with explicit expected
+word phonemes, without any Quran reference lookup:
+
+```ts
+await engine.start({
+  expected: {
+    kind: 'exercise',
+    id: 'teacher-exercise-42',
+    text: teacherText,
+    focus: ['ghunna'],
+    words: teacherWords, // [{ id, text?, phonemes: exactModelTokenNames }]
+  },
+});
+```
+
+The result includes `exercise` metadata. `focus` records instructional intent only;
+it does not enable a calibrated ghunna/gemination/qalqalah/madd scorer. Those raw
+heads are already available separately. No automatic free-text phonemizer is added
+to the phone runtime, and the acoustic model remains trained for Quranic recitation;
+accepting custom references does not make it a universal language recognizer.
 
 `decoded.text` is what the SDK heard **as phoneme names**, not an unconstrained
 Arabic transcript. `matchedText` concatenates caller labels for confidently matching

@@ -11,6 +11,20 @@ export interface ExpectedAyah {
   ayah: number;
   /** Optional display labels, in reference word order. */
   words?: readonly { id: string; text?: string }[];
+  /** Precomputed data currently supports a fresh start and stop at the ayah end. */
+  reading?: 'ayah-end';
+}
+/** Educators author the expected pronunciation; display text never drives recognition. */
+export interface ExpectedExercise {
+  kind: 'exercise';
+  id: string;
+  text?: string;
+  words: readonly ExpectedWord[];
+  /** Instructional intent only. Raw heads are returned; no rule scorer is implied. */
+  focus?: readonly ('ghunna' | 'gemination' | 'qalqalah' | 'madd' | 'phonemes')[];
+}
+export interface AyahReferenceProvider {
+  resolveAyah(request: ExpectedAyah, model: ModelInfo): Promise<readonly ExpectedWord[]> | readonly ExpectedWord[];
 }
 export interface Token {
   id: number; name: string; firstMs: number; peakMs: number; lastMs: number;
@@ -40,6 +54,8 @@ export interface WordFeedback {
 }
 export interface RecitationResult extends NativeChunk {
   words: WordFeedback[];
+  /** Exercise metadata, not a measured Tajweed rule score. */
+  exercise?: { id: string; text?: string; focus?: ExpectedExercise['focus'] };
   /** Expected labels for matching words only; not an unconstrained Arabic transcript. */
   matchedText: string;
 }
@@ -56,7 +72,7 @@ export interface Configuration {
   audience?: 'children' | 'general';
 }
 export interface SessionOptions {
-  expected: readonly ExpectedWord[] | ExpectedAyah;
+  expected: readonly ExpectedWord[] | ExpectedAyah | ExpectedExercise;
   source?: 'microphone' | 'external';
   /** External float samples only: supported SDK rate; default 16000. */
   sampleRate?: number;

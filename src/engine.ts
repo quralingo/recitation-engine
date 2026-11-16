@@ -1,10 +1,12 @@
 import { alignWords, thresholds } from './alignment';
-import type { Configuration, ExpectedWord, ModelInfo, NativeBridge, NativeChunk, RecitationResult,
+import type { AyahReferenceProvider, Configuration, ExpectedExercise, ExpectedWord, ModelInfo, NativeBridge, NativeChunk, RecitationResult,
   SessionEvent, SessionOptions, Subscription } from './types';
 
 export class RecitationEngine {
   private model?: ModelInfo;
-  private session?: { id: string; words: ExpectedWord[]; options: SessionOptions; active: boolean; final?: RecitationResult };
+  private referenceProvider?: AyahReferenceProvider;
+  private session?: { id: string; words: ExpectedWord[]; options: SessionOptions; active: boolean; final?: RecitationResult;
+    exercise?: RecitationResult['exercise'] };
   private sequence = 0;
   private busy = false;
   private resultListeners = new Set<(r: RecitationResult) => void>();
@@ -12,6 +14,12 @@ export class RecitationEngine {
   private pendingAudio = 0;
   private audioTail: Promise<void> = Promise.resolve();
   constructor(private readonly bridge: NativeBridge) {}
+
+  /** Register app-bundled reference data without adding runtime networking to this package. */
+  setReferenceProvider(provider?: AyahReferenceProvider): void {
+    if (this.busy || this.session?.active) throw new Error('Set reference provider between sessions');
+    this.referenceProvider = provider;
+  }
 
   private async exclusive<T>(action: () => Promise<T>): Promise<T> {
     if (this.busy) throw new Error('A lifecycle operation is already in progress');
@@ -45,14 +53,25 @@ export class RecitationEngine {
       let words: ExpectedWord[];
       if (Array.isArray(options.expected)) {
         words = options.expected.map(w => ({ ...w, phonemes: [...w.phonemes] }));
+      } else if ('kind' in options.expected && options.expected.kind === 'exercise') {
+        if (!options.expected.id?.trim()) throw new Error('Exercise id is required');
+        const exercise = options.expected as ExpectedExercise;
+        if (exercise.focus?.some(f => !['ghunna', 'gemination', 'qalqalah', 'madd', 'phonemes'].includes(f))) throw new Error('Unknown exercise focus');
+        words = exercise.words.map(w => ({ ...w, phonemes: [...w.phonemes] }));
       } else {
         const ayah = options.expected as import('./types').ExpectedAyah;
         if (!Number.isInteger(ayah.surah) || !Number.isInteger(ayah.ayah) || ayah.surah < 1 || ayah.surah > 114 || ayah.ayah < 1) throw new Error('Invalid ayah');
-        if (!model.referenceAvailable) throw new Error('reference_missing: supply expected words with verified phonemes for this model');
-        const phones = await this.bridge.reference(ayah.surah, ayah.ayah);
-        if (ayah.words && ayah.words.length !== phones.length) throw new Error('Display word count differs from SDK reference');
-        words = phones.map((phonemes, i) => ({ id: ayah.words?.[i]?.id ?? `${ayah.surah}:${ayah.ayah}:${i + 1}`,
-          text: ayah.words?.[i]?.text, phonemes }));
+        if (ayah.reading && ayah.reading !== 'ayah-end') throw new Error('Unsupported reading context');
+        if (!model.referenceAvailable && this.referenceProvider) {
+          const resolved = await this.referenceProvider.resolveAyah(ayah, model);
+          words = resolved.map(w => ({ ...w, phonemes: [...w.phonemes] }));
+        } else {
+          if (!model.referenceAvailable) throw new Error('reference_missing: register bundled Hafs data or supply verified phonemes');
+          const phones = await this.bridge.reference(ayah.surah, ayah.ayah);
+          if (ayah.words && ayah.words.length !== phones.length) throw new Error('Display word count differs from SDK reference');
+          words = phones.map((phonemes, i) => ({ id: ayah.words?.[i]?.id ?? `${ayah.surah}:${ayah.ayah}:${i + 1}`,
+            text: ayah.words?.[i]?.text, phonemes }));
+        }
       }
       if (!words.length || words.length > 256 || words.reduce((n, w) => n + w.phonemes.length, 0) > 2048) throw new Error('Expected sequence must have 1..256 words and at most 2048 phonemes');
       const ids = new Set<string>();
@@ -62,7 +81,10 @@ export class RecitationEngine {
         ids.add(w.id);
       }
       const id = `recitation-${++this.sequence}`;
-      this.session = { id, words, options: { ...options, thresholds: thresholds(options.thresholds) }, active: true };
+      const expected = options.expected;
+      const exercise = !Array.isArray(expected) && 'kind' in expected && expected.kind === 'exercise'
+        ? { id: expected.id, text: expected.text, focus: expected.focus ? [...expected.focus] : undefined } : undefined;
+      this.session = { id, words, options: { ...options, thresholds: thresholds(options.thresholds) }, exercise, active: true };
       try {
         await this.bridge.start(id, { source: options.source ?? 'microphone', sampleRate,
           context: options.context ?? 'c16_l64', backend: options.backend ?? 'auto', endOnSilenceMs,
@@ -123,7 +145,8 @@ export class RecitationEngine {
       : s.words.map(w => ({ id: w.id, text: w.text, state: 'uncertain' as const, committed: false,
           confidence: null, startMs: null, endMs: null, expectedPhonemes: w.phonemes,
           recognizedPhonemes: [], reason: 'alignment_ambiguous' as const }));
-    const result = { ...chunk, words, matchedText: words.filter(w => w.state === 'correct').map(w => w.text ?? '').filter(Boolean).join(' ') };
+    const exercise = s.exercise ? { ...s.exercise, focus: s.exercise.focus ? [...s.exercise.focus] : undefined } : undefined;
+    const result = { ...chunk, words, exercise, matchedText: words.filter(w => w.state === 'correct').map(w => w.text ?? '').filter(Boolean).join(' ') };
     if (chunk.decoded.isFinal) { s.final = result; s.active = false; }
     for (const listener of this.resultListeners) listener(result);
   }

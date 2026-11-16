@@ -4,6 +4,8 @@ import type { NativeBridge, NativeChunk, SessionEvent } from './types';
 export * from './types';
 export { pcm16leToFloat32 } from './engine';
 export { DEFAULT_THRESHOLDS } from './alignment';
+export { createHafsReferenceProvider } from './reference';
+export type { HafsReferenceBundle } from './reference';
 
 let instance: RecitationEngine | undefined;
 /** One SDK client per process. Call once and keep it for the app's lifetime. */

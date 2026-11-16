@@ -1,6 +1,7 @@
 node_modules/
 lib/
 *.tgz
+hafs-tj3-reference.zip
 android/.gradle/
 android/build/
 ios/.build/
