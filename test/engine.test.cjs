@@ -73,3 +73,33 @@ test('failed native start releases lifecycle state', async () => {
   await assert.rejects(engine.start({ expected }), /microphone_denied/); fail = false;
   await engine.start({ expected }); await engine.cancel();
 });
+
+test('only a VAD speech end can close the final streaming word, not an old CTC timestamp', async () => {
+  const { engine } = await ready();
+  const results = [];
+  engine.onResult(result => results.push(result));
+  const id = await engine.start({ expected, source: 'external', endOnSilenceMs: 0 });
+  engine.acceptChunk({ ...chunk(id), endMs: 5000 });
+  assert.equal(results.at(-1).words[0].state, 'pending');
+  engine.acceptEvent({ sessionId: id, type: 'speechEnded', atMs: 5000, silenceMs: 1520 });
+  assert.equal(results.at(-1).words[0].state, 'correct');
+  assert.equal(results.at(-1).decoded.isFinal, false);
+  await engine.pushAudio([0]);
+});
+
+test('storage inspection configures the client but never downloads a model', async () => {
+  let loads = 0;
+  const { engine } = fixture({ loadModel: async () => { loads++; }, getModelStorage: async () => ({ models: [] }) });
+  assert.deepEqual(await engine.getModelStorage(), { models: [] });
+  assert.equal(loads, 0);
+});
+
+test('download progress is independent of capture sessions and subscriptions can be removed', async () => {
+  const { engine } = fixture();const seen = [];
+  const subscription = engine.onModelDownloadProgress(progress => seen.push(progress));
+  engine.acceptModelDownloadProgress({ downloadedBytes: 5, totalBytes: 10 });
+  engine.acceptModelDownloadProgress({ downloadedBytes: -1, totalBytes: 10 });
+  engine.acceptModelDownloadProgress({ downloadedBytes: NaN, totalBytes: 10 });
+  subscription.remove();engine.acceptModelDownloadProgress({ downloadedBytes: 10, totalBytes: 10 });
+  assert.deepEqual(seen, [{ downloadedBytes: 5, totalBytes: 10 }]);
+});

@@ -1,7 +1,7 @@
 import { alignWords, thresholds } from './alignment';
 import { createBundledHafsReferenceProvider } from './bundled-reference';
 import type { AyahReferenceProvider, Configuration, ExpectedExercise, ExpectedWord, ModelInfo, NativeBridge, NativeChunk, RecitationResult,
-  RecitationEngineOptions, SessionEvent, SessionOptions, Subscription } from './types';
+  RecitationEngineOptions, SessionEvent, SessionOptions, Subscription, ModelDownloadProgress, ModelStorage } from './types';
 
 export class RecitationEngine {
   private model?: ModelInfo;
@@ -9,11 +9,12 @@ export class RecitationEngine {
   private configured = false;
   private pendingStart?: { cancelled: boolean; finished: Promise<void>; finish(): void };
   private session?: { id: string; words: ExpectedWord[]; options: SessionOptions; active: boolean; final?: RecitationResult;
-    exercise?: RecitationResult['exercise'] };
+    exercise?: RecitationResult['exercise']; lastChunk?: NativeChunk; speechEndedAt?: number };
   private sequence = 0;
   private busy = false;
   private resultListeners = new Set<(r: RecitationResult) => void>();
   private eventListeners = new Set<(e: SessionEvent) => void>();
+  private downloadListeners = new Set<(progress: ModelDownloadProgress) => void>();
   private pendingAudio = 0;
   private audioTail: Promise<void> = Promise.resolve();
   constructor(private readonly bridge: NativeBridge, options: RecitationEngineOptions = {}) {
@@ -22,11 +23,14 @@ export class RecitationEngine {
         ? createBundledHafsReferenceProvider() : options.referenceProvider;
   }
 
-  private async ensureModel(): Promise<ModelInfo> {
+  private async ensureConfigured(): Promise<void> {
     if (!this.configured) {
       await this.bridge.configure({ audience: 'children' });
       this.configured = true;
     }
+  }
+  private async ensureModel(): Promise<ModelInfo> {
+    await this.ensureConfigured();
     return this.model ??= await this.bridge.loadModel();
   }
 
@@ -55,6 +59,22 @@ export class RecitationEngine {
       if (this.session?.active) throw new Error('Stop the session before loading a model');
       return this.ensureModel();
     });
+  }
+  getModelStorage(): Promise<ModelStorage> {
+    return this.exclusive(async () => {
+      await this.ensureConfigured();
+      if (!this.bridge.getModelStorage) throw new Error('Rebuild the app to enable offline recitation setup.');
+      return this.bridge.getModelStorage();
+    });
+  }
+  onModelDownloadProgress(listener: (progress: ModelDownloadProgress) => void): Subscription {
+    this.downloadListeners.add(listener);
+    return { remove: () => { this.downloadListeners.delete(listener); } };
+  }
+  acceptModelDownloadProgress(progress: ModelDownloadProgress): void {
+    if (!Number.isFinite(progress.downloadedBytes) || !Number.isFinite(progress.totalBytes) ||
+        progress.downloadedBytes < 0 || progress.totalBytes < 0) return;
+    for (const listener of this.downloadListeners) listener(progress);
   }
   start(options: SessionOptions): Promise<string> {
     return this.exclusive(async () => {
@@ -170,9 +190,10 @@ export class RecitationEngine {
     if (this.pendingStart?.cancelled) return;
     const s = this.session;
     if (!s || chunk.sessionId !== s.id || s.final) return;
+    s.lastChunk = chunk;
     // Bound alignment memory/work for long or unrelated recitations; keep raw output intact.
     const words = chunk.decoded.tokens.length <= 4096
-      ? alignWords(s.words, chunk.decoded, this.model?.wordBar ?? null, thresholds(s.options.thresholds))
+      ? alignWords(s.words, chunk.decoded, this.model?.wordBar ?? null, thresholds(s.options.thresholds), s.speechEndedAt)
       : s.words.map(w => ({ id: w.id, text: w.text, state: 'uncertain' as const, committed: false,
           confidence: null, startMs: null, endMs: null, expectedPhonemes: w.phonemes,
           recognizedPhonemes: [], reason: 'alignment_ambiguous' as const }));
@@ -184,6 +205,12 @@ export class RecitationEngine {
   acceptEvent(event: SessionEvent): void {
     if (this.pendingStart?.cancelled) return;
     if (event.sessionId !== this.session?.id) return;
+    if (event.type === 'speechStarted') this.session.speechEndedAt = undefined;
+    if (event.type === 'speechEnded' && event.atMs !== undefined) {
+      this.session.speechEndedAt = event.atMs + (event.silenceMs ?? 0);
+      // Re-evaluate the last settled word without ending microphone capture.
+      if (this.session.lastChunk) this.acceptChunk(this.session.lastChunk);
+    }
     if (event.type === 'error' || event.type === 'ended') this.session.active = false;
     for (const listener of this.eventListeners) listener(event);
   }

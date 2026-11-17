@@ -53,12 +53,22 @@ class RecitationModule(private val context: ReactApplicationContext) : ReactCont
     @ReactMethod fun loadModel(promise: Promise) = command(promise) {
         check(!running) { "Stop the current session" }
         val configuredClient = checkNotNull(client) { "Configure first" }
-        configuredClient.prefetch()
+        var lastProgressAt = 0L
+        configuredClient.prefetch(onProgress = { done, total ->
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - lastProgressAt >= 100 || done >= total) {
+                lastProgressAt = now
+                emit("QuralingoRecitationModelProgress", mapOf("downloadedBytes" to done, "totalBytes" to total))
+            }
+        })
         val m = configuredClient.model()
         model = m
         mapOf("version" to m.version, "build" to m.build, "tokens" to m.tokens.names,
             "blank" to m.tokens.blank, "wordBar" to m.tokens.wordBar, "referenceAvailable" to (m.reference != null),
             "calibration" to m.calibration?.let { mapOf("json" to it.json, "sha256" to it.sha256) })
+    }
+    @ReactMethod fun getModelStorage(promise: Promise) = command(promise) {
+        checkNotNull(client) { "Configure first" }.storage
     }
     @ReactMethod fun reference(surah: Int, ayah: Int, promise: Promise) = command(promise) {
         val m = checkNotNull(model) { "Load model first" }

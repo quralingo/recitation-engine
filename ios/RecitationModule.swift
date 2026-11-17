@@ -16,9 +16,10 @@ class QuralingoRecitation: RCTEventEmitter {
     @MainActor private var rate = 16000
     @MainActor private var chunkTask: Task<Void, Never>?
     @MainActor private var eventTask: Task<Void, Never>?
+    @MainActor private var lastModelProgressAt: TimeInterval = 0
     @MainActor private var lastChunk: [String: Any]?
     override static func requiresMainQueueSetup() -> Bool { true }
-    override func supportedEvents() -> [String]! { ["QuralingoRecitationChunk", "QuralingoRecitationEvent"] }
+    override func supportedEvents() -> [String]! { ["QuralingoRecitationChunk", "QuralingoRecitationEvent", "QuralingoRecitationModelProgress"] }
 
     private func command(_ resolve: @escaping RCTPromiseResolveBlock, _ reject: @escaping RCTPromiseRejectBlock,
                          _ body: @escaping @MainActor () async throws -> Any?) {
@@ -56,6 +57,15 @@ class QuralingoRecitation: RCTEventEmitter {
     func loadModel(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         command(resolve, reject) { [self] in
             guard !running, let client else { throw failure("Configure first and stop any session") }
+            try await client.prefetch(onProgress: { [weak self] done, total in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    let now = Date().timeIntervalSince1970
+                    guard now - self.lastModelProgressAt >= 0.1 || done >= total else { return }
+                    self.lastModelProgressAt = now
+                    self.sendEvent(withName: "QuralingoRecitationModelProgress", body: ["downloadedBytes": done, "totalBytes": total])
+                }
+            })
             let m = try await client.model()
             model = m
             var calibration: Any = NSNull()
@@ -64,6 +74,13 @@ class QuralingoRecitation: RCTEventEmitter {
                     "tokens": (0..<m.tokens.count).map { m.tokens.name($0) }, "blank": m.tokens.blank,
                     "wordBar": m.tokens.wordBar as Any? ?? NSNull(),
                     "referenceAvailable": m.reference != nil, "calibration": calibration] as [String: Any]
+        }
+    }
+    @objc(getModelStorage:rejecter:)
+    func getModelStorage(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+        command(resolve, reject) { [self] in
+            guard let client else { throw failure("Configure first") }
+            return ["models": client.storage.models.map { ["version": $0.version, "build": $0.build, "bytes": $0.bytes] as [String: Any] }]
         }
     }
     @objc(reference:ayah:resolver:rejecter:)

@@ -1,6 +1,6 @@
 import { NativeEventEmitter, NativeModules } from 'react-native';
 import { RecitationEngine } from './engine';
-import type { NativeBridge, NativeChunk, RecitationEngineOptions, SessionEvent } from './types';
+import type { NativeBridge, NativeChunk, RecitationEngineOptions, ModelDownloadProgress, SessionEvent } from './types';
 export * from './types';
 export { pcm16leToFloat32 } from './engine';
 export { DEFAULT_THRESHOLDS } from './alignment';
@@ -19,6 +19,7 @@ export function getRecitation(options?: RecitationEngineOptions): RecitationEngi
   if (!native) throw new Error('@quranlingoapp/recitation is not linked. Rebuild the native app; Expo Go is unsupported.');
   const engine = new RecitationEngine(native as NativeBridge, options);
   const events = new NativeEventEmitter(native);
+  events.addListener('QuralingoRecitationModelProgress', (p: ModelDownloadProgress) => engine.acceptModelDownloadProgress(p));
   events.addListener('QuralingoRecitationChunk', (c: NativeChunk) => engine.acceptChunk(c));
   events.addListener('QuralingoRecitationEvent', (e: SessionEvent) => engine.acceptEvent(e));
   instance = engine;

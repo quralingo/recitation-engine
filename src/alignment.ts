@@ -86,32 +86,54 @@ function align(expected: readonly ExpectedWord[], decoded: Decoded,
     if (!h) return { ...base, state: deleted.has(wi) || decoded.isFinal ? 'uncertain' : 'pending', committed: false,
       reason: deleted.has(wi) || decoded.isFinal ? 'missing_audio' : 'not_reached' };
     const ratio = editDistance(word.phonemes, base.recognizedPhonemes) / Math.max(word.phonemes.length, 1);
-    const state = ambiguous ? 'uncertain' : base.confidence === null ? 'uncertain'
+    const exactUnique = ratio === 0 && expected.filter(w =>
+      w.phonemes.length === word.phonemes.length && w.phonemes.every((p, i) => p === word.phonemes[i])).length === 1;
+    const state = ambiguous && !exactUnique ? 'uncertain' : base.confidence === null ? 'uncertain'
       : ratio === 0 && base.confidence >= config.correctConfidence ? 'correct'
       : ratio > 0 && ratio <= config.maxIncorrectEditRatio && base.confidence >= config.incorrectConfidence ? 'incorrect' : 'uncertain';
     if (!h.settled) return { ...base, state: 'pending', committed: false, provisionalState: state, reason: 'provisional' };
-    return { ...base, state, committed: state !== 'uncertain', reason: ambiguous ? 'alignment_ambiguous'
+    return { ...base, state, committed: state !== 'uncertain', reason: ambiguous && !exactUnique ? 'alignment_ambiguous'
       : state === 'correct' ? 'match' : state === 'incorrect' ? 'substitution' : 'low_confidence' };
   });
 }
 
-/** Some model builds emit phones without word bars. Only infer exact boundaries. */
-function exactBoundaries(expected: readonly ExpectedWord[], decoded: Decoded, bar: number | null): Decoded {
-  if (bar === null || expected.length < 2 || !decoded.tokens.length || decoded.tokens.some(t => t.id === bar)) return decoded;
-  const phones = expected.flatMap(w => w.phonemes);
-  if (decoded.tokens.length > phones.length || decoded.tokens.some((t, i) => t.name !== phones[i])) return decoded;
+/** Recover boundaries from exact reference anchors and actual pauses, never
+ * from a guessed Arabic transcription. An error must not disable later anchors.
+ * endMs is supplied only after SDK VAD reports an utterance end; CTC token
+ * timestamp gaps can be sustained vowels and must never stand in for silence.
+ */
+function exactBoundaries(expected: readonly ExpectedWord[], decoded: Decoded, bar: number | null, endMs?: number): Decoded {
+  if (bar === null || !decoded.tokens.length || decoded.tokens.some(t => t.id === bar)) return decoded;
   const boundaries = new Set<number>();
-  let end = 0;
-  for (const word of expected) { end += word.phonemes.length; boundaries.add(end); }
+  const names = decoded.tokens.map(token => token.name);
+  const phones = expected.flatMap(word => word.phonemes);
+  const wholePrefix = names.length <= phones.length && names.every((name, i) => name === phones[i]);
+  const paused = endMs !== undefined && endMs - decoded.tokens.at(-1)!.lastMs >= 600 && decoded.settled >= decoded.tokens.length;
+  for (const word of expected) {
+    if (word.phonemes.length < 2 && !wholePrefix) continue;
+    for (let start = 0; start + word.phonemes.length <= names.length; start++) {
+      if (!word.phonemes.every((phone, i) => phone === names[start + i])) continue;
+      // Do not cut a longer reference word at an embedded shorter word.
+      const end = start + word.phonemes.length;
+      const embedded = expected.some(other => other.phonemes.length > word.phonemes.length &&
+        other.phonemes.some((_, offset) => {
+          const outerStart = start - offset;
+          return outerStart >= 0 && outerStart + other.phonemes.length <= names.length &&
+            other.phonemes.every((phone, i) => phone === names[outerStart + i]);
+        }));
+      if (!embedded) { if (start > 0) boundaries.add(start); boundaries.add(end); }
+    }
+  }
+  if (paused) boundaries.add(decoded.tokens.length);
+  if (paused) boundaries.add(names.length);
   const tokens: Token[] = [];
   let settled = 0;
   decoded.tokens.forEach((token, i) => {
     tokens.push(token);
     if (i < decoded.settled) settled++;
-    // Require a following phone before closing a streaming word.
-    if (boundaries.has(i + 1) && (i + 1 < decoded.tokens.length || decoded.isFinal)) {
+    if (boundaries.has(i + 1) && (i + 1 < decoded.tokens.length || decoded.isFinal || paused)) {
       tokens.push({ ...token, id: bar, name: '|', confidence: null });
-      if (i + 1 < decoded.settled || decoded.isFinal) settled++;
+      if (i + 1 < decoded.settled || decoded.isFinal || paused) settled++;
     }
   });
   return { ...decoded, tokens, settled };
@@ -119,8 +141,8 @@ function exactBoundaries(expected: readonly ExpectedWord[], decoded: Decoded, ba
 
 /** Tentative phones cannot influence a committed alignment. */
 export function alignWords(expected: readonly ExpectedWord[], decoded: Decoded,
-  bar: number | null, config: Thresholds = DEFAULT_THRESHOLDS): WordFeedback[] {
-  decoded = exactBoundaries(expected, decoded, bar);
+  bar: number | null, config: Thresholds = DEFAULT_THRESHOLDS, endMs?: number): WordFeedback[] {
+  decoded = exactBoundaries(expected, decoded, bar, endMs);
   const full = align(expected, decoded, bar, config);
   if (decoded.isFinal) return full;
   let lastBoundary = -1;

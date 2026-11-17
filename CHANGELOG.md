@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-beta.6
+
+- Expose model download byte progress through `onModelDownloadProgress()` on Android and iOS.
+- Add `getModelStorage()` to inspect the SDK cache without downloading or opening a model.
+- Improve barless streaming word alignment and preserve exact anchors across pauses.
+- Use speech-ended events to finalize streaming words without treating sustained vowels as silence.
+- Android debug native compilation and cached-model setup validated. Fresh-download progress
+  and iOS device behavior still require validation.
+
 ## 0.1.0-beta.5
 
 - Download/cache the Android model with SDK prefetch before opening it on fresh installs.

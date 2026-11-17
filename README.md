@@ -121,11 +121,32 @@ Hafs references for all 114 surahs ship inside npm and are selected automaticall
 first use; later sessions reuse it. The first call can take time for the SDK's
 verified model download, so show a loading state while awaiting it. Reference JSON
 is already bundled and requires no download. Optionally call `engine.loadModel()`
-at app launch to warm the model before the first session.
+after the user opts in to warm the model before the first session.
 Call `cancel()` when leaving during startup too: it prevents a delayed microphone
 start and, if native start is already in progress, cancels that session before
 resolving. Cancellation waits for an in-flight SDK load/start operation to finish;
 it does not abort the SDK's model download.
+
+Apps can offer an explicit offline setup flow without changing the recitation API:
+
+```ts
+// Cache inspection configures the client but does not download/open the model.
+const storage = await engine.getModelStorage();
+const progress = engine.onModelDownloadProgress(({ downloadedBytes, totalBytes }) => {
+  // totalBytes may be zero while the SDK discovers the download size.
+  updateDownloadProgress(downloadedBytes, totalBytes);
+});
+try {
+  await engine.loadModel(); // Resolves only after download and model preparation.
+  saveOfflinePreference(true);
+} finally {
+  progress.remove();
+}
+```
+
+Storage consent, free-space checks, persisted engine preferences, and online fallback
+belong to the consuming app. Cached loads may complete without download progress.
+Switching to online mode does not cancel an in-flight SDK download or delete its cache.
 
 The existing explicit-phoneme route remains available:
 

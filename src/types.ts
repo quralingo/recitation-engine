@@ -109,6 +109,7 @@ export interface NativeOptions {
 export interface NativeBridge {
   configure(config: Configuration): Promise<void>;
   loadModel(): Promise<ModelInfo>;
+  getModelStorage?(): Promise<ModelStorage>;
   reference(surah: number, ayah: number): Promise<string[][]>;
   start(sessionId: string, options: NativeOptions): Promise<void>;
   pushAudio(sessionId: string, samples: number[]): Promise<void>;
@@ -116,3 +117,6 @@ export interface NativeBridge {
   cancel(sessionId: string): Promise<void>;
   showSharingSettings(): Promise<void>;
 }
+
+export interface ModelDownloadProgress { downloadedBytes: number; totalBytes: number; }
+export interface ModelStorage { models: { version: string; build: string; bytes: number }[]; }
