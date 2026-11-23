@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add pure Arabic letter-feedback mapping and downloaded bundle validation.
+- Export a pinned letter-map asset descriptor; keep bulk JSON outside the package.
+- Add reproducible provenance export tooling and S3/host setup instructions.
+
 ## 0.1.0-beta.6
 
 - Expose model download byte progress through `onModelDownloadProgress()` on Android and iOS.

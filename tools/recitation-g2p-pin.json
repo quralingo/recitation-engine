@@ -1,0 +1,158 @@
+{
+  "repository": "https://github.com/Quran-Lab/quran-g2p",
+  "revision": "7eeba1206146e0b4a81bbd12b59671042b1ba3f0",
+  "files": [
+    {
+      "path": "LICENSE",
+      "gitBlob": "defd34f9748fac0ea9573cc8cec26c5534f8dabf"
+    },
+    {
+      "path": "artifacts/tokenizer_tj3/tokens.txt",
+      "gitBlob": "b479c02a0c5dd944e88e67a9f888be241ce9f053"
+    },
+    {
+      "path": "artifacts/tokenizer_tj3/vocab_manifest.json",
+      "gitBlob": "48f695117413175990c2998bc0aa3de341abc3da"
+    },
+    {
+      "path": "data/census-kfgqpc.json",
+      "gitBlob": "ebbc2d448b48fe8d4dc86955fd0d276f41c0c7ad"
+    },
+    {
+      "path": "data/census-tanzil.json",
+      "gitBlob": "b8ee2fa787a82c82892b2afd24b58bedd772292d"
+    },
+    {
+      "path": "data/tanzil-uthmani.txt",
+      "gitBlob": "0f6e4f85e881494d4393251279945a6940c6c401"
+    },
+    {
+      "path": "docs/SOURCES.md",
+      "gitBlob": "0d18c0a1d59fbe2d5c0399573d7a1a18b26db71c"
+    },
+    {
+      "path": "src/quran_g2p/__init__.py",
+      "gitBlob": "3714494f1365461ff2272cf4cdb31dc7ab471362"
+    },
+    {
+      "path": "src/quran_g2p/audit.py",
+      "gitBlob": "86d85650b73cd30a7e62fc18b9ebfd99c14d4145"
+    },
+    {
+      "path": "src/quran_g2p/cluster.py",
+      "gitBlob": "a18df0b2eefe203f8dcc2029b1efcf2894928d9b"
+    },
+    {
+      "path": "src/quran_g2p/codepoints.py",
+      "gitBlob": "11c2f478a0e5c2ea1911f3db8a1a98920fc128ba"
+    },
+    {
+      "path": "src/quran_g2p/concat.py",
+      "gitBlob": "4229f445db3ba11745d2608e514dcfc93c1bcc8a"
+    },
+    {
+      "path": "src/quran_g2p/config.py",
+      "gitBlob": "88560e7aeb56924a473aac715e103bbdfd473868"
+    },
+    {
+      "path": "src/quran_g2p/decode.py",
+      "gitBlob": "946e6c547ad42b2d1ea1cefeafe4e76f26b350d2"
+    },
+    {
+      "path": "src/quran_g2p/export_corpus.py",
+      "gitBlob": "e3a9389dd640fa34e80c240c39c7fe1fdb51f1cf"
+    },
+    {
+      "path": "src/quran_g2p/export_vocab.py",
+      "gitBlob": "8d3a88473e3a38f45ec59b20f7118726fd3a3908"
+    },
+    {
+      "path": "src/quran_g2p/export_vocab_tj2.py",
+      "gitBlob": "2a7fa1f4634985c557649254e36c480ae36e6ff9"
+    },
+    {
+      "path": "src/quran_g2p/ir.py",
+      "gitBlob": "fa3fb69376b6b4d7480849ab7cbde3844f21d219"
+    },
+    {
+      "path": "src/quran_g2p/khilaf.py",
+      "gitBlob": "d5485ab6af976482f635d695e5cb3d4e52e167e6"
+    },
+    {
+      "path": "src/quran_g2p/lattice.py",
+      "gitBlob": "bd6dda8cdc3038920e4f6fbd7749b1f14c1c9548"
+    },
+    {
+      "path": "src/quran_g2p/madd_constraints.py",
+      "gitBlob": "b53c86ebf47d440f0506df3897ae003255dee008"
+    },
+    {
+      "path": "src/quran_g2p/ortho.py",
+      "gitBlob": "39b26bafcbc4925995d4eae065efb60381c91072"
+    },
+    {
+      "path": "src/quran_g2p/phonemize.py",
+      "gitBlob": "2ead434801cb3b6955e0de6a8c12a7543b3feac6"
+    },
+    {
+      "path": "src/quran_g2p/pipeline.py",
+      "gitBlob": "7b4208395bff7b24a9a3d94f389e949361977d64"
+    },
+    {
+      "path": "src/quran_g2p/rules/__init__.py",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "src/quran_g2p/rules/base.py",
+      "gitBlob": "8d9c30aec6775a67da60d94146df83ba840fbfb7"
+    },
+    {
+      "path": "src/quran_g2p/rules/p1_orthography.py",
+      "gitBlob": "ce9c91200217eae37e3dc302abf78b7531c933d9"
+    },
+    {
+      "path": "src/quran_g2p/rules/registry.py",
+      "gitBlob": "1f4775ae97eda3aa7f57317ac3709795ba54175a"
+    },
+    {
+      "path": "src/quran_g2p/sifat.py",
+      "gitBlob": "016313798264b08a1e683a315d160239f705cffe"
+    },
+    {
+      "path": "src/quran_g2p/textbank.py",
+      "gitBlob": "e3be1ed6fef1dc77b4389e4c787b5b1df2c69c1c"
+    },
+    {
+      "path": "src/quran_g2p/tokenlayer.py",
+      "gitBlob": "917d73f215462369f511d2ecf5484c320ac7c4f5"
+    },
+    {
+      "path": "src/quran_g2p/tokenlayer_tj3.py",
+      "gitBlob": "2b9e3b972845c35b236793251224e25b4b86dc4d"
+    },
+    {
+      "path": "src/quran_g2p/variants.py",
+      "gitBlob": "ab4d625b5511b454da66440be0aeed38fd032389"
+    },
+    {
+      "path": "src/quran_g2p/waqf.py",
+      "gitBlob": "b0f89508cab8a08daafd6852cefb2d0d2cbf3e79"
+    },
+    {
+      "path": "src/quran_g2p/wasl_classes.py",
+      "gitBlob": "18f3ec1a108a733b9b5ec5d9d196eb6ff287664b"
+    },
+    {
+      "path": "tests/test_tokenlayer_tj3.py",
+      "gitBlob": "6b6d12166d49ce95626d8d84dbcc6800ebe2c02d"
+    },
+    {
+      "path": "tools/export_phonetics_dataset.py",
+      "gitBlob": "429f707db9df21719e3a4350d803a8957dcef79c"
+    },
+    {
+      "path": "data/tanzil-uthmani.txt",
+      "gitBlob": "0f6e4f85e881494d4393251279945a6940c6c401"
+    }
+  ]
+}

@@ -25,3 +25,7 @@ export function getRecitation(options?: RecitationEngineOptions): RecitationEngi
   instance = engine;
   return engine;
 }
+
+export { LETTER_MAP_ASSET } from './letter-map-asset';
+export { mapWordLetters, mismatchedPhones, parseLetterMapBundle } from './letter-mapping';
+export type { LetterMap, LetterPart, LetterMapBundle } from './letter-mapping';

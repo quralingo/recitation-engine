@@ -318,3 +318,10 @@ See example/usage.ts for microphone and existing-stream integration. Native
 validation and publishing steps are in docs/validation.md and docs/upgrades.md.
 This workspace contains the source package; no npm release or GitHub push has been
 performed. Publish only after real host builds and device validation pass.
+
+## Downloadable letter feedback
+
+Arabic letter feedback is available through `mapWordLetters()` using source spans
+from a separately downloaded, versioned JSON asset. `LETTER_MAP_ASSET` pins its
+location, size, reference version, and checksum. The bulk maps are not bundled
+with the package. See [letter map generation, upload, and host setup](docs/letter-maps.md).
