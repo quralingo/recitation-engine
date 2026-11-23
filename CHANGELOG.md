@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-beta.7
 
 - Add pure Arabic letter-feedback mapping and downloaded bundle validation.
 - Export a pinned letter-map asset descriptor; keep bulk JSON outside the package.
