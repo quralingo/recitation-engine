@@ -5,7 +5,7 @@ module QuralingoRecitationSPM
   URL = 'https://github.com/Quran-Lab/tajweedformer-apple'.freeze
   PRODUCT = 'TajweedFormer'.freeze
   POD = 'QuralingoRecitation'.freeze
-  REQUIREMENT = { 'kind' => 'exactVersion', 'version' => '3.1.4' }.freeze
+  REQUIREMENT = { 'kind' => 'exactVersion', 'version' => '4.0.3' }.freeze
   RESOURCE_BUNDLE = 'TajweedFormer_TajweedFormer.bundle'.freeze
   RESOURCE_PHASE = '[QuralingoRecitation] Copy SDK Resources'.freeze
 

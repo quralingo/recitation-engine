@@ -1,3 +1,18 @@
+## SDK 4.0.3 migration — 2026-11-24
+
+- Package beta.8: 55 Node tests and TypeScript checks pass.
+- Android bridge compiled against the published SDK 4.0.3 AAR and React Native 0.84.1
+  in an isolated Gradle host (compileSdk 36, Java 17, Kotlin 2.1.20).
+- Apple exact-version pin and static/dynamic project-ownership Ruby tests pass.
+- Swift bridge syntax parse passes; no iOS typecheck, link, or distribution archive
+  was built for this migration.
+- No emulator or device tests run, at the user's explicit request.
+- Host follow-up: publish/install beta.8, reinstall pods and resolve SwiftPM, rebuild
+  native apps, enable App Attest provisioning and register signing fingerprints.
+  Test fresh encrypted setup, cached startup, corrections offline, and real iOS/Android capture.
+
+The older validation records below describe earlier releases, not SDK 4.0.3.
+
 # Validation and remaining checks
 
 Implementation is a first integration candidate, not a proven production native

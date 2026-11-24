@@ -74,7 +74,6 @@ export interface Thresholds {
 export interface Configuration {
   /** Optional when the host has configured its platform key in native app metadata. */
   apiKey?: string;
-  audience?: 'children' | 'general';
 }
 export interface SessionOptions {
   expected: readonly ExpectedWord[] | ExpectedAyah | ExpectedExercise;

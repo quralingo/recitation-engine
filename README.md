@@ -3,7 +3,7 @@
 Independent, typed React Native wrapper for **Quran Lab TajweedFormer V4**.
 Streams phoneme transcription, timing, confidence and raw Tajweed heads on the
 device, with conservative expected-word feedback. No application UI, app analytics,
-app networking, React hooks or global store. Android SDK **3.1.5**, Apple SDK **3.1.4**.
+app networking, React hooks or global store. Android and Apple SDKs **4.0.3**.
 
 Automatic tajweed feedback can be wrong and does not replace a qualified teacher.
 `correct` means a confident phoneme-sequence match under this wrapper's heuristic;
@@ -92,7 +92,7 @@ iOS, in the host Info.plist:
 
 Set `QURAN_LAB_API_KEY` in the host's build settings/xcconfig. Use the appropriate
 platform-bound key and keep actual keys out of this repository. Alternatively call
-`engine.configure({ apiKey: platformKey, audience: 'children' })` once at app startup.
+`engine.configure({ apiKey: platformKey })` once at app startup.
 Missing keys cause `start()` to reject with a `missing_configuration` message.
 
 ## Use
@@ -168,7 +168,7 @@ await engine.start({ expected: { surah: 1, ayah: 1, words: displayLabels } });
 ```
 
 The default uses the package's pinned Hafs reference. Current upstream
-3.1.5/3.1.4 model builds expose no SDK reference, so one is not required.
+The bundled reference is available independently of the served model build.
 `loadModel()` exposes the
 vocabulary, blank/bar IDs, calibration JSON/hash and reference availability.
 
@@ -296,10 +296,10 @@ model-powered features/outputs must remain free. The public QuranLingo permissio
 includes the condition that model-derived recitation progress in the parent
 dashboard is also free; unrelated paid curriculum customization is separate.
 
-No wrapper-level analytics, uploads or app networking are added. SDK analytics are
-configured off. SDK downloads/key validation/diagnostics still occur. The upstream
-SDK may offer its consent sheet for recording contributions; the wrapper never
-opts anyone in. Children/guardian wording is the default. Add a settings action
+No wrapper-level analytics, uploads or app networking are added. SDK 4.0 always
+sends anonymous aggregate counts/durations and diagnostic reports; it exposes no
+analytics or audience option. Recognition runs on device. The SDK handles its
+recording-sharing consent sheet; the wrapper never opts anyone in. Add a settings action
 calling `engine.showSharingSettings()` so the learner can turn sharing off or delete
 contributions. Review the SDK's current privacy disclosures for your app listing.
 Display the automatic-feedback notice from NOTICE in the host app.
@@ -325,3 +325,21 @@ Arabic letter feedback is available through `mapWordLetters()` using source span
 from a separately downloaded, versioned JSON asset. `LETTER_MAP_ASSET` pins its
 location, size, reference version, and checksum. The bulk maps are not bundled
 with the package. See [letter map generation, upload, and host setup](docs/letter-maps.md).
+
+## SDK 4.0 host requirements
+
+- First SDK 4 setup needs an internet connection and downloads the encrypted model again.
+  Later recognition is local; if the SDK returns `needs_connection`, connect and retry.
+- Android runs on CPU. Register the production app signing and upload certificate
+  SHA-256 fingerprints in Quran Lab's app/key Setup page. Development emulators
+  require a development key. Do not modify the shipped Core binary.
+- Apple hosts must enable App Attest on their App ID/provisioning and set
+  `com.apple.developer.devicecheck.appattest-environment` (`development` for debug,
+  `production` for distribution). Simulators require a development key.
+- Review store privacy disclosures against the SDK's privacy manifest: anonymous
+  usage, performance and crash diagnostics are mandatory; audio sharing stays optional.
+- `loadModel()` installs/prepares `c16_l64` and `c24_l72` on CPU without microphone
+  access before returning, so normal and correction sessions can start offline.
+
+See [SDK upgrade notes](docs/upgrades.md) and the
+[official migration guide](https://sdk.quranlab.ai/docs/upgrade).

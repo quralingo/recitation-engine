@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-beta.8
+
+- Upgrade Android and Apple native SDKs to TajweedFormer 4.0.3.
+- Remove SDK 3-only analytics/audience options, including Configuration.audience.
+- Prepare streaming and correction CPU contexts before model setup finishes.
+- Document encrypted first installation, App Attest, signing registration, and mandatory anonymous SDK diagnostics.
+- No emulator/device tests run; host rebuild and device validation are required.
+
 ## 0.1.0-beta.7
 
 - Add pure Arabic letter-feedback mapping and downloaded bundle validation.

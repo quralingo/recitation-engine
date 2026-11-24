@@ -1,4 +1,17 @@
-# Permission and distribution review — 2026-11-16
+# Permission and distribution review
+
+## SDK 4.0 update — 2026-11-24
+
+SDK 4.0.3 replaces the older analytics/audience options: anonymous daily aggregate
+usage and diagnostic reporting are mandatory. Audio sharing remains an explicit
+SDK-managed learner choice. The recommended automatic-feedback notice is optional
+under the current upstream migration guide; we retain it in QuranLingo. This
+section supersedes the SDK 3.x behavior described in the historical review below.
+
+Sources: https://sdk.quranlab.ai/docs/upgrade and the Android/Apple 4.0.3
+README, migration guide, and Apple privacy manifest.
+
+## Historical review — 2026-11-16
 
 Reviewed the public exchange between Dr. Haytham Mones and Quran Lab:
 https://community.itqan.dev/d/686 (Quran Lab's reply to Haytham, following the discussion of Tathbeet).

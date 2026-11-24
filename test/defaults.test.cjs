@@ -15,7 +15,7 @@ function fixture(overrides = {}) {
 test('start needs only surah/ayah; prepares once, selects bundled data and reuses the model', async()=>{
   const {engine,calls} = fixture();
   const id = await engine.start({expected:{surah:1,ayah:1}});
-  assert.deepEqual(calls.configure,[{audience:'children'}]);
+  assert.deepEqual(calls.configure,[{}]);
   assert.equal(calls.load,1);
   let result;engine.onResult(r=>{result=r;});
   engine.acceptChunk({sessionId:id,index:0,startMs:0,endMs:0,backend:'cpu',heads:[],decoded:{text:'',tokens:[],settled:0,isFinal:true}});

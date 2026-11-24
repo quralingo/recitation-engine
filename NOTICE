@@ -11,7 +11,7 @@ Distributed under Quran-Lab No-Profit License 1.2. See LICENSE.
 Never charge for this package, access to its model, or features/outputs
 powered by the model. Other upstream components retain their own licenses.
 
-Applications must clearly display:
+Recommended notice for applications:
 Automatic tajweed feedback can be wrong and does not replace a qualified teacher.
 
 Word feedback is a configurable phoneme comparison heuristic, not a

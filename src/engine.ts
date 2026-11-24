@@ -25,7 +25,7 @@ export class RecitationEngine {
 
   private async ensureConfigured(): Promise<void> {
     if (!this.configured) {
-      await this.bridge.configure({ audience: 'children' });
+      await this.bridge.configure({});
       this.configured = true;
     }
   }
@@ -49,7 +49,7 @@ export class RecitationEngine {
     return this.exclusive(async () => {
       if (this.session?.active) throw new Error('Stop the session before configuring');
       if (config.apiKey !== undefined && !config.apiKey.trim()) throw new Error('apiKey must be nonempty when supplied');
-      await this.bridge.configure({ ...config, audience: config.audience ?? 'children' });
+      await this.bridge.configure(config);
       this.configured = true;
       this.model = undefined; this.session = undefined;
     });

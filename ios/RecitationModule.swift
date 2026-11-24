@@ -48,8 +48,7 @@ class QuralingoRecitation: RCTEventEmitter {
             chunkTask?.cancel(); eventTask?.cancel()
             await model?.close()
             model = nil; session = nil; sessionId = nil; client?.close(); client = nil
-            client = try TajweedClient(key: key, options: .init(analytics: .off,
-                audience: config["audience"] as? String == "general" ? .general : .children))
+            client = try TajweedClient(key: key)
             return nil
         }
     }
@@ -67,6 +66,11 @@ class QuralingoRecitation: RCTEventEmitter {
                 }
             })
             let m = try await client.model()
+            // Prepare CPU contexts now; correction remains available without a later download.
+            for context in ["c16_l64", "c24_l72"] {
+                guard m.contexts.contains(context) else { throw failure("context_missing: \(context) is not shipped by this model") }
+                try await m.prepare(options: .init(context: context, sampleRate: 16000, backend: .cpu))
+            }
             model = m
             var calibration: Any = NSNull()
             if let c = m.calibration { calibration = ["json": String(decoding: c.data, as: UTF8.self), "sha256": c.sha256] }

@@ -1,6 +1,6 @@
 {
   "name": "@quranlingoapp/recitation",
-  "version": "0.1.0-beta.7",
+  "version": "0.1.0-beta.8",
   "description": "React Native streaming bridge for Quran Lab TajweedFormer V4",
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
@@ -19,7 +19,8 @@
     "mobile-reference/SOURCE-NOTICE.md",
     "mobile-reference/tanzil-uthmani-source.txt",
     "mobile-reference/README.md",
-    "android",
+    "android/build.gradle",
+    "android/src",
     "ios",
     "*.podspec",
     "react-native.config.js",

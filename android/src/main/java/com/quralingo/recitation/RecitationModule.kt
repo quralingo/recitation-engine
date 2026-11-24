@@ -45,9 +45,7 @@ class RecitationModule(private val context: ReactApplicationContext) : ReactCont
         check(!key.isNullOrBlank()) { "missing_configuration: set com.quralingo.recitation.API_KEY in application metadata or call configure with apiKey" }
         chunksJob?.cancelAndJoin(); eventsJob?.cancelAndJoin()
         client?.close(); client = null; model = null; session = null; sessionId = null
-        client = TajweedClient(context, key, TajweedClientOptions(
-            analytics = TajweedClientOptions.Analytics.OFF,
-            audience = if (config.getString("audience") == "general") TajweedClientOptions.Audience.GENERAL else TajweedClientOptions.Audience.CHILDREN))
+        client = TajweedClient(context, key)
         null
     }
     @ReactMethod fun loadModel(promise: Promise) = command(promise) {
@@ -62,6 +60,13 @@ class RecitationModule(private val context: ReactApplicationContext) : ReactCont
             }
         })
         val m = configuredClient.model()
+        // Install/warm both contexts used by the host before setup reports ready.
+        // External sessions never request the microphone and cancelled empty takes are not counted.
+        for (contextName in listOf("c16_l64", "c24_l72")) {
+            check(contextName in m.contexts) { "context_missing: $contextName is not shipped by this model" }
+            m.session(TajweedSessionOptions(context = contextName, sampleRate = 16000,
+                backend = TajweedSessionOptions.Backend.CPU)).cancel()
+        }
         model = m
         mapOf("version" to m.version, "build" to m.build, "tokens" to m.tokens.names,
             "blank" to m.tokens.blank, "wordBar" to m.tokens.wordBar, "referenceAvailable" to (m.reference != null),

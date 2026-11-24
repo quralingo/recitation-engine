@@ -5,7 +5,7 @@ import type { ExpectedWord } from '@quranlingoapp/recitation';
 // Never derive the Quran's recitation phonemes by splitting Arabic letters.
 export async function recite(apiKey: string, expected: ExpectedWord[]) {
   const engine = getRecitation();
-  await engine.configure({ apiKey, audience: 'children' });
+  await engine.configure({ apiKey });
   const model = await engine.loadModel();
   console.log(model.version, model.referenceAvailable);
   const resultSubscription = engine.onResult(result => {
