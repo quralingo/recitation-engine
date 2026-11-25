@@ -275,6 +275,18 @@ do not assume cross-stream ordering. `stop()` returns final output. `cancel()`
 discards the take. Permission/SDK failures reject promises or arrive as ended/error
 events; compare upstream error codes rather than human-readable messages.
 
+For microphone sessions, `onEvent()` emits `captureReady` after native startup
+completes, before `start()` resolves. Use it to show the Stop/ready state; do not
+wait for `speechStarted` or a decoded result to invite the learner to speak.
+It is not emitted for external-input sessions: those hosts must wait for their
+own microphone's first audio buffer before displaying readiness. Subscribe before
+calling `start()` and filter events by session ID. Startup failures/cancellation
+do not emit readiness. This signal confirms startup, not recognition accuracy.
+
+At a VAD speech end, settled trailing phones can close the last word even when
+earlier SDK word separators are present. No extra silence delay is added by the
+wrapper; unsettled phones and silence alone still cannot produce a correct word.
+
 ## Word judgments
 
 See docs/judgments.md. Each result is a replaceable snapshot, with per-word state,

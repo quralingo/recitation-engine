@@ -47,33 +47,35 @@ export function parseLetterMapBundle(value: unknown): LetterMapBundle {
   return data as LetterMapBundle;
 }
 
-/** Reject ambiguous alignments and insertions rather than guessing Arabic letters. */
+/** Return only wrong expected phones shared by every minimum-edit alignment.
+ * Insertions have no Arabic letter of their own; ambiguity must not erase a
+ * separate substitution that all alignments agree on. */
 export function mismatchedPhones(expected: readonly string[], heard: readonly string[]): number[] | null {
-  type Cell = { cost: number; ways: number; op: 'delete' | 'insert' | 'pair' | '' };
-  const columns = heard.length + 1;
-  const cells: Cell[] = Array.from({ length: (expected.length + 1) * columns }, () => ({ cost: 0, ways: 1, op: '' }));
-  const at = (i: number, j: number): Cell => cells[i * columns + j]!;
+  if (!heard.length) return null;
+  const costs = Array.from({ length: expected.length + 1 }, () => new Array<number>(heard.length + 1).fill(0));
+  const certain = new Map<string, Set<number>>();
   for (let i = 0; i <= expected.length; i++) for (let j = 0; j <= heard.length; j++) {
-    if (!i && !j) continue;
-    const choices: Cell[] = [];
-    if (i) choices.push({ cost: at(i - 1, j).cost + 1, ways: at(i - 1, j).ways, op: 'delete' });
-    if (j) choices.push({ cost: at(i, j - 1).cost + 1, ways: at(i, j - 1).ways, op: 'insert' });
-    if (i && j) choices.push({ cost: at(i - 1, j - 1).cost + (expected[i - 1] === heard[j - 1] ? 0 : 1), ways: at(i - 1, j - 1).ways, op: 'pair' });
+    if (!i && !j) { certain.set('0:0', new Set()); continue; }
+    const choices: { cost: number; wrong: Set<number> }[] = [];
+    const add = (pi: number, pj: number, extra: number, wrongIndex?: number) => {
+      const wrong = new Set(certain.get(`${pi}:${pj}`)!);
+      if (wrongIndex !== undefined) wrong.add(wrongIndex);
+      choices.push({ cost: costs[pi]![pj]! + extra, wrong });
+    };
+    if (i) add(i - 1, j, 1, i - 1);
+    if (j) add(i, j - 1, 1);
+    if (i && j) {
+      const different = expected[i - 1] !== heard[j - 1];
+      add(i - 1, j - 1, different ? 1 : 0, different ? i - 1 : undefined);
+    }
     const best = Math.min(...choices.map(choice => choice.cost));
     const winners = choices.filter(choice => choice.cost === best);
-    cells[i * columns + j] = { cost: best, ways: Math.min(2, winners.reduce((sum, choice) => sum + choice.ways, 0)), op: winners[0]!.op };
+    costs[i]![j] = best;
+    certain.set(`${i}:${j}`, new Set([...winners[0]!.wrong].filter(index =>
+      winners.every(choice => choice.wrong.has(index)))));
   }
-  let i = expected.length, j = heard.length;
-  if (!heard.length || at(i, j).ways !== 1) return null;
-  const wrong: number[] = [];
-  while (i || j) {
-    const op = at(i, j).op;
-    if (op === 'insert') return null;
-    if (op === 'delete') { wrong.push(--i); continue; }
-    if (expected[i - 1] !== heard[j - 1]) wrong.push(i - 1);
-    i--; j--;
-  }
-  return wrong;
+  const wrong = [...certain.get(`${expected.length}:${heard.length}`)!].sort((a, b) => a - b);
+  return wrong.length || costs[expected.length]![heard.length] === 0 ? wrong : null;
 }
 
 function letterGroups(text: string) {
@@ -113,10 +115,9 @@ export function mapWordLetters(
   for (let index = 0; index < units.length; index++) {
     const unit = units[index]!;
     const wrong = mismatchedPhones(unit.expectedPhonemes, unit.recognizedPhonemes);
-    if (!wrong) return null;
     const mapping = map.units[unitIndices[index]!];
     if (!mapping || mapping.length !== unit.expectedPhonemes.length) return null;
-    wrong.forEach(phone => spans.push(mapping[phone]!));
+    wrong?.forEach(phone => spans.push(mapping[phone]!));
   }
   if (!spans.length) return null;
   return displayed.map((group, index) => ({ text: group.text,

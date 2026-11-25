@@ -139,3 +139,22 @@ test('CTC timestamp gaps inside a known word are not silence boundaries', () => 
   const result = alignWords([word('allah', 'l', 'aa', 'h', 'i')], d, 0);
   assert.equal(result[0].state, 'correct');
 });
+
+test('VAD closes a settled tail when earlier SDK word separators exist', () => {
+  const expected = [word('one', 'a', 'b'), word('two', 'c', 'd')];
+  const d = decoded(['a', 'b', '|', 'c', 'd']);
+  const before = alignWords(expected, d, 0);
+  assert.equal(before[1].state, 'pending');
+  const after = alignWords(expected, d, 0, undefined, d.tokens.at(-1).lastMs + 20);
+  assert.deepEqual(after.map(w => w.state), ['correct', 'correct']);
+});
+test('VAD does not close an unsettled SDK-separated tail', () => {
+  const d = decoded(['a', '|', 'b'], { settled: 2 });
+  const result = alignWords([word('one', 'a'), word('two', 'b')], d, 0, undefined, 1000);
+  assert.equal(result[1].committed, false);
+});
+test('an old VAD end cannot close newly recognized trailing phones', () => {
+  const d = decoded(['a', '|', 'b']);
+  const result = alignWords([word('one', 'a'), word('two', 'b')], d, 0, undefined, 0);
+  assert.equal(result[1].committed, false);
+});

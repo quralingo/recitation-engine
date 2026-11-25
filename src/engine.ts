@@ -137,6 +137,14 @@ export class RecitationEngine {
         } catch (error) { this.session = undefined; throw error; }
         return id;
       } finally { this.pendingStart = undefined; request.finish(); }
+    }).then(id => {
+      // Native listen() has started capture. Emit outside the lifecycle lock,
+      // without waiting for speech or the first inference chunk.
+      if (this.session?.id === id && this.session.active &&
+          (this.session.options.source ?? 'microphone') === 'microphone') {
+        this.acceptEvent({ sessionId: id, type: 'captureReady' });
+      }
+      return id;
     });
   }
   /** Float32 mono -1..1. Await each call; chunks are limited to one second. */

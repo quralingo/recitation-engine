@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-beta.9
+
+- Emit microphone `captureReady` after successful native startup without waiting for speech; external capture remains host-owned.
+- Close settled final words on VAD speech-end evidence, including streams containing earlier SDK word separators, without an additional silence threshold.
+- Preserve unambiguous letter substitutions/deletions across otherwise ambiguous edits or insertions; never guess which repeated letter was wrong.
+- Keep precise letter mapping nullable when evidence or display mapping is insufficient; hosts still own whole-word fallback styling.
+- Add regression coverage for readiness, settled tails, stale VAD evidence and partial letter localization. Mobile wiring and device validation remain separate.
+
 ## 0.1.0-beta.8
 
 - Upgrade Android and Apple native SDKs to TajweedFormer 4.0.3.

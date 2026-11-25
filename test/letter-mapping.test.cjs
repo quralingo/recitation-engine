@@ -41,3 +41,19 @@ test('validates the complete downloaded bundle, source version and code-point sp
   const missing = completeBundle(); delete missing.surahs['002']['286'];
   assert.throws(() => parseLetterMapBundle(missing), /Incomplete/);
 });
+
+test('localizes a certain substitution despite a separate insertion', () => {
+  assert.deepEqual(mismatchedPhones(['b', 's', 'm'], ['b', 'z', 's', 'x']), [2]);
+});
+test('keeps certain letter errors when another unit cannot be localized', () => {
+  const multi = { text: 'بسم', units: [[[0, 1]], [[1, 2], [2, 3]]] };
+  const parts = mapWordLetters(multi, 'بسم', [
+    { expectedPhonemes: ['b'], recognizedPhonemes: ['b', 'z'] },
+    { expectedPhonemes: ['s', 'm'], recognizedPhonemes: ['s', 'x'] },
+  ], [0, 1]);
+  assert.deepEqual(parts, [{ text: 'ب', wrong: false }, { text: 'س', wrong: false }, { text: 'م', wrong: true }]);
+});
+test('does not assign an ambiguous deletion to an arbitrary repeated letter', () => {
+  assert.equal(mismatchedPhones(['a', 'a'], ['a']), null);
+  assert.deepEqual(mismatchedPhones(['a', 'a', 'b'], ['a', 'x']), [2]);
+});

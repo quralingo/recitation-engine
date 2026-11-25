@@ -103,3 +103,40 @@ test('download progress is independent of capture sessions and subscriptions can
   subscription.remove();engine.acceptModelDownloadProgress({ downloadedBytes: 10, totalBytes: 10 });
   assert.deepEqual(seen, [{ downloadedBytes: 5, totalBytes: 10 }]);
 });
+
+test('microphone readiness follows native startup without needing speech', async () => {
+  let release;
+  const events = [];
+  const { engine } = await ready({ start: () => new Promise(resolve => { release = resolve; }) });
+  engine.onEvent(event => events.push(event));
+  const pending = engine.start({ expected });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(events.length, 0);
+  release();
+  const id = await pending;
+  assert.deepEqual(events, [{ sessionId: id, type: 'captureReady' }]);
+});
+test('failed startup and external audio do not claim microphone readiness', async () => {
+  const failed = await ready({ start: async () => { throw new Error('microphone_denied'); } });
+  const events = [];
+  failed.engine.onEvent(event => events.push(event));
+  await assert.rejects(failed.engine.start({ expected }));
+  const external = await ready();
+  external.engine.onEvent(event => events.push(event));
+  await external.engine.start({ expected, source: 'external' });
+  assert.equal(events.length, 0);
+});
+test('cancelling native startup never emits captureReady', async () => {
+  let release;
+  const { engine } = await ready({ start: () => new Promise(resolve => { release = resolve; }) });
+  const events = [];
+  engine.onEvent(event => events.push(event));
+  const start = engine.start({ expected });
+  const rejected = assert.rejects(start, /cancelled/);
+  await new Promise(resolve => setImmediate(resolve));
+  const cancel = engine.cancel();
+  release();
+  await cancel;
+  await rejected;
+  assert.equal(events.length, 0);
+});

@@ -103,12 +103,20 @@ function align(expected: readonly ExpectedWord[], decoded: Decoded,
  * timestamp gaps can be sustained vowels and must never stand in for silence.
  */
 function exactBoundaries(expected: readonly ExpectedWord[], decoded: Decoded, bar: number | null, endMs?: number): Decoded {
-  if (bar === null || !decoded.tokens.length || decoded.tokens.some(t => t.id === bar)) return decoded;
+  if (bar === null || !decoded.tokens.length) return decoded;
+  // SDK VAD has already established silence. Do not require a second delay.
+  const paused = endMs !== undefined && Number.isFinite(endMs) &&
+    endMs >= decoded.tokens.at(-1)!.lastMs && decoded.settled >= decoded.tokens.length;
+  if (decoded.tokens.some(t => t.id === bar)) {
+    const last = decoded.tokens.at(-1)!;
+    if (!paused || last.id === bar) return decoded;
+    return { ...decoded, tokens: [...decoded.tokens, { ...last, id: bar, name: '|', confidence: null }],
+      settled: decoded.settled + 1 };
+  }
   const boundaries = new Set<number>();
   const names = decoded.tokens.map(token => token.name);
   const phones = expected.flatMap(word => word.phonemes);
   const wholePrefix = names.length <= phones.length && names.every((name, i) => name === phones[i]);
-  const paused = endMs !== undefined && endMs - decoded.tokens.at(-1)!.lastMs >= 600 && decoded.settled >= decoded.tokens.length;
   for (const word of expected) {
     if (word.phonemes.length < 2 && !wholePrefix) continue;
     for (let start = 0; start + word.phonemes.length <= names.length; start++) {
@@ -125,7 +133,6 @@ function exactBoundaries(expected: readonly ExpectedWord[], decoded: Decoded, ba
     }
   }
   if (paused) boundaries.add(decoded.tokens.length);
-  if (paused) boundaries.add(names.length);
   const tokens: Token[] = [];
   let settled = 0;
   decoded.tokens.forEach((token, i) => {

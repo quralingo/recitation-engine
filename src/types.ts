@@ -95,7 +95,8 @@ export interface ModelInfo {
 }
 export interface SessionEvent {
   sessionId: string;
-  type: 'speechStarted' | 'speechEnded' | 'interrupted' | 'resumed' | 'backendChanged' | 'ended' | 'error';
+  /** captureReady: native microphone startup completed; no speech is required. */
+  type: 'captureReady' | 'speechStarted' | 'speechEnded' | 'interrupted' | 'resumed' | 'backendChanged' | 'ended' | 'error';
   atMs?: number; silenceMs?: number; cause?: string; fromChunk?: number;
   backend?: string; reason?: string; code?: string; message?: string;
 }

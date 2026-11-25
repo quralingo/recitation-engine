@@ -14,7 +14,10 @@ scorer, not empirically calibrated verdicts, and not religious rulings.
    this heuristic. Extra recognized words remain visible in raw output; no invented
    expected word is added for them.
 3. A word is settled only after its closing word bar is inside `decoded.settled`,
-   or on `isFinal`. Partial word tails remain pending with a provisionalState.
+   or on `isFinal`. A VAD speech-end event can supply a closing boundary for a
+   fully settled tail, with or without earlier SDK separators; it adds no further
+   silence delay. Old VAD evidence cannot close phones timestamped after it.
+   Partial word tails remain pending with a provisionalState.
    Run committed alignment on settled, closed words alone so provisional phones
    cannot affect committed judgments. Recompute each snapshot; later settled
    evidence may resolve/reassign an alignment. `committed` means based on settled
