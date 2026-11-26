@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.10
+
+- Add focusWordId for single-word retries surrounded by optional context.
+- Return only focused feedback, retaining confidence, settlement and ambiguity checks.
+
+
 ## 0.1.0-beta.9
 
 - Emit microphone `captureReady` after successful native startup without waiting for speech; external capture remains host-owned.

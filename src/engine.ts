@@ -1,4 +1,4 @@
-import { alignWords, thresholds } from './alignment';
+import { alignFocusedWord, alignWords, thresholds } from './alignment';
 import { createBundledHafsReferenceProvider } from './bundled-reference';
 import type { AyahReferenceProvider, Configuration, ExpectedExercise, ExpectedWord, ModelInfo, NativeBridge, NativeChunk, RecitationResult,
   RecitationEngineOptions, SessionEvent, SessionOptions, Subscription, ModelDownloadProgress, ModelStorage } from './types';
@@ -120,6 +120,7 @@ export class RecitationEngine {
           if (!w.id || ids.has(w.id) || !w.phonemes.length || w.phonemes.some(p => !vocabulary.has(p))) throw new Error('Words need unique ids and nonempty phonemes from the model vocabulary (no blank or word bars)');
           ids.add(w.id);
         }
+        if (options.focusWordId !== undefined && !words.some(word => word.id === options.focusWordId)) throw new Error('Unknown focusWordId');
         const id = `recitation-${++this.sequence}`;
         if (request.cancelled) throw new Error('cancelled: session start was cancelled');
         const expected = options.expected;
@@ -201,7 +202,7 @@ export class RecitationEngine {
     s.lastChunk = chunk;
     // Bound alignment memory/work for long or unrelated recitations; keep raw output intact.
     const words = chunk.decoded.tokens.length <= 4096
-      ? alignWords(s.words, chunk.decoded, this.model?.wordBar ?? null, thresholds(s.options.thresholds), s.speechEndedAt)
+      ? (s.options.focusWordId ? alignFocusedWord(s.words, s.options.focusWordId, chunk.decoded, this.model?.wordBar ?? null, thresholds(s.options.thresholds), s.speechEndedAt) : alignWords(s.words, chunk.decoded, this.model?.wordBar ?? null, thresholds(s.options.thresholds), s.speechEndedAt))
       : s.words.map(w => ({ id: w.id, text: w.text, state: 'uncertain' as const, committed: false,
           confidence: null, startMs: null, endMs: null, expectedPhonemes: w.phonemes,
           recognizedPhonemes: [], reason: 'alignment_ambiguous' as const }));

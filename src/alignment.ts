@@ -163,3 +163,23 @@ export function alignWords(expected: readonly ExpectedWord[], decoded: Decoded,
       (word.state === 'pending' ? undefined : word.state), reason: word.reason === 'not_reached' ? 'not_reached' : 'provisional' };
   });
 }
+
+/** Locate one retry word among optional spoken neighbours; never grade neighbours. */
+export function alignFocusedWord(expected: readonly ExpectedWord[], targetId: string,
+  decoded: Decoded, bar: number | null, config: Thresholds = DEFAULT_THRESHOLDS, endMs?: number): WordFeedback[] {
+  const target = expected.find(word => word.id === targetId)!;
+  const bounded = exactBoundaries(expected, decoded, bar, endMs);
+  const heard = split(bounded, bar);
+  if (!heard.length) return alignWords([target], decoded, bar, config, endMs);
+  const candidates = heard.map(word => ({ word, cost: editDistance(target.phonemes, word.tokens.map(t => t.name)) /
+    Math.max(target.phonemes.length, word.tokens.length, 1) }));
+  const best = Math.min(...candidates.map(candidate => candidate.cost));
+  const winners = candidates.filter(candidate => candidate.cost === best);
+  const selected = winners[0]!.word;
+  const result = alignWords([target], { ...decoded, tokens: selected.tokens,
+    settled: selected.settled ? selected.tokens.length : 0,
+    isFinal: decoded.isFinal || selected.settled }, bar, config)[0]!;
+  if (winners.length > 1) return [{ ...result, state: 'uncertain', committed: false,
+    provisionalState: undefined, reason: 'alignment_ambiguous' }];
+  return [result];
+}

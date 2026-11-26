@@ -355,3 +355,13 @@ with the package. See [letter map generation, upload, and host setup](docs/lette
 
 See [SDK upgrade notes](docs/upgrades.md) and the
 [official migration guide](https://sdk.quranlab.ai/docs/upgrade).
+
+### Focused contextual retries
+
+Pass `focusWordId` with `expected` containing the target and optional previous/next
+words. The returned `words` array contains only the target, so callers must merge
+it by ID, not its position in `expected`. The learner may say the target alone or
+include its neighbours. Neighbour results never determine success. Equal best
+matches abstain; recognition is based on bounded word candidates, not arbitrary
+phoneme substrings. Keep failed/uncertain results unchanged in the host and finish
+a retry on speech end. The host owns attempt limits and contextual audio playback.

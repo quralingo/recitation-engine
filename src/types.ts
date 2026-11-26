@@ -77,6 +77,8 @@ export interface Configuration {
 }
 export interface SessionOptions {
   expected: readonly ExpectedWord[] | ExpectedAyah | ExpectedExercise;
+  /** Retry one word; other expected words provide optional alignment context only. */
+  focusWordId?: string;
   source?: 'microphone' | 'external';
   /** External float samples only: supported SDK rate; default 16000. */
   sampleRate?: number;

@@ -158,3 +158,26 @@ test('an old VAD end cannot close newly recognized trailing phones', () => {
   const result = alignWords([word('one', 'a'), word('two', 'b')], d, 0, undefined, 0);
   assert.equal(result[1].committed, false);
 });
+
+test('focused retries accept optional neighbours and return only the target', () => {
+  const { alignFocusedWord } = require('../lib/alignment');
+  const expected = [word('before', 'a', 'b'), word('target', 'c', 'd'), word('after', 'e', 'f')];
+  for (const names of [['c','d'], ['a','b','c','d'], ['a','b','c','d','e','f']]) {
+    const result = alignFocusedWord(expected, 'target', decoded(names, { isFinal: true }), 0);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].id, 'target');
+    assert.equal(result[0].state, 'correct');
+  }
+  assert.notEqual(alignFocusedWord(expected, 'target', decoded(['a','b','e','f'], { isFinal: true }), 0)[0].state, 'correct');
+});
+test('focused retries keep tentative phones pending and reject ambiguous matches', () => {
+  const { alignFocusedWord } = require('../lib/alignment');
+  const expected = [word('before', 'a', 'b'), word('target', 'c', 'd'), word('after', 'e', 'f')];
+  assert.equal(alignFocusedWord(expected, 'target', decoded(['c','d'], { settled: 1 }), 0)[0].committed, false);
+  const d = decoded(['c','d','|','c','d'], { isFinal: true });
+  assert.equal(alignFocusedWord(expected, 'target', d, 0)[0].committed, false);
+  for (const id of ['before','after']) {
+    const target = expected.find(w => w.id === id);
+    assert.equal(alignFocusedWord(expected, id, decoded(target.phonemes, { isFinal: true }), 0)[0].state, 'correct');
+  }
+});

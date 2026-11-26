@@ -140,3 +140,12 @@ test('cancelling native startup never emits captureReady', async () => {
   await rejected;
   assert.equal(events.length, 0);
 });
+test('focused sessions validate their target and return only its feedback', async () => {
+  const { engine } = await ready();
+  await assert.rejects(engine.start({ expected, focusWordId: 'missing' }), /focusWordId/);
+  const results = [];
+  engine.onResult(result => results.push(result));
+  const id = await engine.start({ expected: [...expected, { id: 'other', phonemes: ['b'] }], focusWordId: 'one' });
+  engine.acceptChunk(chunk(id, true));
+  assert.deepEqual(results.at(-1).words.map(w => w.id), ['one']);
+});
