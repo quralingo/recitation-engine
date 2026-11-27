@@ -8,6 +8,8 @@ module QuralingoRecitationSPM
   REQUIREMENT = { 'kind' => 'exactVersion', 'version' => '4.0.3' }.freeze
   RESOURCE_BUNDLE = 'TajweedFormer_TajweedFormer.bundle'.freeze
   RESOURCE_PHASE = '[QuralingoRecitation] Copy SDK Resources'.freeze
+  CORE_FRAMEWORK = 'QuranLabCore.framework'.freeze
+  EMBED_PHASE = '[QuralingoRecitation] Embed Core'.freeze
 
   def self.recitation_pod?(target)
     (target.respond_to?(:pod_name) && target.pod_name == POD) ||
@@ -99,6 +101,22 @@ module QuralingoRecitationSPM
     target.shell_script_build_phases.select { |p| p.name == RESOURCE_PHASE }.each(&:remove_from_project)
   end
 
+  def self.embed_core(project, target)
+    # SwiftPM selects the XCFramework slice in BUILT_PRODUCTS_DIR. Static pod
+    # linkage does not propagate its dynamic dependency into the app bundle.
+    phase = target.copy_files_build_phases.find { |p| p.name == EMBED_PHASE } ||
+      target.new_copy_files_build_phase(EMBED_PHASE)
+    phase.dst_subfolder_spec = '10' # Frameworks; Xcode handles signing on copy.
+    phase.dst_path = ''
+    file = phase.files.find { |f| f.file_ref&.path == CORE_FRAMEWORK }
+    unless file
+      ref = project.files.find { |f| f.path == CORE_FRAMEWORK && f.source_tree == 'BUILT_PRODUCTS_DIR' } ||
+        project.frameworks_group.new_file(CORE_FRAMEWORK, :built_products)
+      file = phase.add_file_reference(ref, true)
+    end
+    file.settings = { 'ATTRIBUTES' => ['CodeSignOnCopy', 'RemoveHeadersOnCopy'] }
+  end
+
 end
 
 def quralingo_recitation_spm(installer)
@@ -121,6 +139,7 @@ def quralingo_recitation_spm(installer)
       QuralingoRecitationSPM.remove_resource_copy_phases(host_target)
     end
   end
+  hosts.each { |host_project, host_target| QuralingoRecitationSPM.embed_core(host_project, host_target) }
   # CocoaPods saves Pods.xcodeproj after post_install; user project edits need saving too.
   hosts.map(&:first).uniq.each { |host_project| host_project.save unless host_project == project }
 end

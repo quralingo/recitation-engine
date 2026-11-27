@@ -51,7 +51,10 @@ archives the SDK implementation into that pod. The helper removes beta.3's direc
 SDK product dependencies/link entries from consuming app targets. Beta.5 also
 removes beta.4 resource-copy phases; Xcode automatically propagates the upstream
 SPM resource bundle, including its privacy manifest. The app links only the
-pod; linking the SDK again would duplicate its objects. It saves those user-project
+pod; linking the SDK again would duplicate its objects. The helper also adds a
+standard Embed Frameworks copy phase for the SDK's dynamic `QuranLabCore.framework`,
+using Xcode's platform-selected build product with Code Sign On Copy. This embeds
+Core without linking TajweedFormer a second time. It saves those user-project
 changes. With
 a dynamic pod it keeps linkage on that framework as before. It does not change
 Firebase/GoogleSignIn dependencies, global linkage or linker flags. Do not add a

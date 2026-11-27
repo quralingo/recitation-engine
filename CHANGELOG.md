@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Embed the dynamic QuranLabCore framework in consuming iOS apps through the
+  existing CocoaPods post-install helper, with Code Sign On Copy. Preserve sole
+  static SDK implementation ownership in the bridge to avoid duplicate symbols.
+- Test platform-selected Core embedding and repeated pod-install idempotence.
+
 ## 0.1.0-beta.10
 
 - Add focusWordId for single-word retries surrounded by optional context.

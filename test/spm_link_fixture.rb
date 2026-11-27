@@ -55,6 +55,8 @@ QuralingoRecitationSPM.attach(project, app, link: true) if ARGV.include?('--repr
 # Substitute an offline local SPM product with Swift, C and resources for the
 # remote SDK. Only test fixture references are changed, never the shipped helper.
 unless official
+  # The lightweight offline fixture has no dynamic binary dependency.
+  app.copy_files_build_phases.select { |p| p.name == QuralingoRecitationSPM::EMBED_PHASE }.each(&:remove_from_project)
   remote = project.root_object.package_references.first
   local = project.new(Xcodeproj::Project::Object::XCLocalSwiftPackageReference)
   local.relative_path = 'FixtureSDK'
@@ -94,6 +96,11 @@ raise 'SDK must be archived once by the pod' unless members.count('TajweedFormer
 product = Dir.glob(File.join(root, 'DerivedData', 'Build', 'Products', '*', 'FixtureApp.app')).first
 raise 'SPM resource bundle did not reach the app' unless product && (official || Dir.glob(File.join(product, '**', 'probe.txt')).any?)
 raise 'SDK privacy manifest did not reach the app' unless Dir.glob(File.join(product, '**', 'PrivacyInfo.xcprivacy')).any?
+if official
+  core = File.join(product, 'Frameworks', 'QuranLabCore.framework', 'QuranLabCore')
+  raise 'Dynamic QuranLabCore did not reach the app' unless File.file?(core)
+  raise 'Embedded Core is not a dynamic library' unless IO.popen(['xcrun', 'otool', '-hv', core], &:read).include?('DYLIB')
+end
 images = [File.join(product, 'FixtureApp')] + Dir.glob(File.join(product, '*.debug.dylib'))
 symbols = images.map { |image| IO.popen(['xcrun', 'nm', '-g', image], &:read) }.join("\n")
 symbol = official ? '_opus_encode_float' : '_recitation_core_probe'

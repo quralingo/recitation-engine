@@ -53,9 +53,17 @@ Dir.mktmpdir('recitation-static-tests-') do |dir|
     assert(consumer.frameworks_build_phase.files.none? { |f| QuralingoRecitationSPM.our_product?(f.product_ref) }, 'No second SDK link on consuming app')
     phases = consumer.shell_script_build_phases.select { |p| p.name == QuralingoRecitationSPM::RESOURCE_PHASE }
     assert(phases.empty?, 'Xcode must be the only SDK resource producer; remove all beta.4 phases')
+    embeds = consumer.copy_files_build_phases.select { |p| p.name == QuralingoRecitationSPM::EMBED_PHASE }
+    assert(embeds.size == 1 && embeds.first.files.size == 1, 'Embed Core exactly once after repeated installs')
+    embed = embeds.first
+    file = embed.files.first
+    assert(embed.dst_subfolder_spec == '10' && embed.dst_path == '', 'Embed in app Frameworks directory')
+    assert(file.file_ref.path == 'QuranLabCore.framework' && file.file_ref.source_tree == 'BUILT_PRODUCTS_DIR', 'Use the platform-selected SPM framework')
+    assert(file.settings['ATTRIBUTES'].sort == ['CodeSignOnCopy', 'RemoveHeadersOnCopy'].sort, 'Use normal Xcode embedding and signing')
   end
   assert(unrelated.shell_script_build_phases.include?(other_phase), 'Unrelated target scripts are preserved')
   assert(unrelated.package_product_dependencies.empty?, 'Unrelated target must stay untouched')
+  assert(unrelated.copy_files_build_phases.none? { |p| p.name == QuralingoRecitationSPM::EMBED_PHASE }, 'Do not embed Core in unrelated apps')
   assert(unrelated.frameworks_build_phase.files.none? { |f| QuralingoRecitationSPM.our_product?(f.product_ref) }, 'Unrelated target must not link SDK')
   assert(pods.root_object.package_references.size == 1 && app.root_object.package_references.empty?, 'SDK owned only by pod project')
   assert(target.package_product_dependencies.size == 1, 'Static pod still needs SDK compile dependency')
@@ -67,6 +75,7 @@ Dir.mktmpdir('recitation-static-tests-') do |dir|
   reopened = Xcodeproj::Project.open(app.path)
   saved = reopened.targets.find { |t| t.name == 'Phone' }
   assert(saved.package_product_dependencies.empty? && saved.shell_script_build_phases.none? { |p| p.name == QuralingoRecitationSPM::RESOURCE_PHASE }, 'Persist migrated host and resources')
+  assert(saved.copy_files_build_phases.any? { |p| p.name == QuralingoRecitationSPM::EMBED_PHASE && p.files.size == 1 }, 'Persist Core embedding')
   # Also support use_frameworks disabled (plain static-library pods).
   library_project = Xcodeproj::Project.new(File.join(dir, 'StaticLibraryPods.xcodeproj'))
   library = library_project.new_target(:static_library, 'QuralingoRecitation', :ios, '15.1')
