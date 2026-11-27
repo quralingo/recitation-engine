@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-beta.11
 
 - Embed the dynamic QuranLabCore framework in consuming iOS apps through the
   existing CocoaPods post-install helper, with Code Sign On Copy. Preserve sole

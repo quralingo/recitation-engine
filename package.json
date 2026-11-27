@@ -1,6 +1,6 @@
 {
   "name": "@quranlingoapp/recitation",
-  "version": "0.1.0-beta.10",
+  "version": "0.1.0-beta.11",
   "description": "React Native streaming bridge for Quran Lab TajweedFormer V4",
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
