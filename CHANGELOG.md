@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-beta.12
+
+- Position Core embedding before post-resource scripts that read the processed
+  Info.plist, avoiding an Xcode dependency cycle with React Native Firebase.
+- Cover Info.plist-consuming scripts in the native build fixture.
+- Add bridge-level breath-pause/resume regression coverage. No recognition or
+  audio capture behavior changes; reported iPhone post-pause word loss remains
+  under investigation and needs a reproducible recording.
+
 ## 0.1.0-beta.11
 
 - Embed the dynamic QuranLabCore framework in consuming iOS apps through the

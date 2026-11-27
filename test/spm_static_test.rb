@@ -43,6 +43,10 @@ Dir.mktmpdir('recitation-static-tests-') do |dir|
     end
   end
   other_phase = unrelated.new_shell_script_build_phase(QuralingoRecitationSPM::RESOURCE_PHASE)
+  [phone, tablet].each do |consumer|
+    phase = consumer.new_shell_script_build_phase('[CP-User] [RNFB] Core Configuration')
+    phase.input_paths = ['$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)']
+  end
   quralingo_recitation_spm(installer)
   pods.root_object.package_references.clear
   app.root_object.package_references.clear
@@ -56,6 +60,8 @@ Dir.mktmpdir('recitation-static-tests-') do |dir|
     embeds = consumer.copy_files_build_phases.select { |p| p.name == QuralingoRecitationSPM::EMBED_PHASE }
     assert(embeds.size == 1 && embeds.first.files.size == 1, 'Embed Core exactly once after repeated installs')
     embed = embeds.first
+    plist_script = consumer.shell_script_build_phases.find { |p| p.name == '[CP-User] [RNFB] Core Configuration' }
+    assert(consumer.build_phases.index(embed) < consumer.build_phases.index(plist_script), 'Embed Core before scripts reading the processed Info.plist')
     file = embed.files.first
     assert(embed.dst_subfolder_spec == '10' && embed.dst_path == '', 'Embed in app Frameworks directory')
     assert(file.file_ref.path == 'QuranLabCore.framework' && file.file_ref.source_tree == 'BUILT_PRODUCTS_DIR', 'Use the platform-selected SPM framework')

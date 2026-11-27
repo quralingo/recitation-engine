@@ -87,6 +87,40 @@ test('only a VAD speech end can close the final streaming word, not an old CTC t
   await engine.pushAudio([0]);
 });
 
+test('a breath pause keeps external capture open and aligns the first resumed word', async () => {
+  const audio = [];
+  const { engine, info, calls } = await ready({ pushAudio: async (_id, samples) => { audio.push(samples); } });
+  info.tokens.push('c', 'd', 'e', 'f');
+  const words = [
+    { id: 'before', phonemes: ['a', 'b'] },
+    { id: 'resumed', phonemes: ['c', 'd'] },
+    { id: 'after', phonemes: ['e', 'f'] },
+  ];
+  const results = [];
+  engine.onResult(result => results.push(result));
+  const id = await engine.start({ expected: words, source: 'external', endOnSilenceMs: 0 });
+  const snapshot = names => ({ ...chunk(id), decoded: {
+    text: names.join(' '), settled: names.length, isFinal: false,
+    tokens: names.map((name, i) => ({ id: info.tokens.indexOf(name), name,
+      firstMs: i < 2 ? i * 40 : 2000 + (i - 2) * 40,
+      peakMs: i < 2 ? i * 40 : 2000 + (i - 2) * 40,
+      lastMs: i < 2 ? i * 40 : 2000 + (i - 2) * 40, confidence: .99 })),
+  } });
+  engine.acceptChunk(snapshot(['a', 'b']));
+  engine.acceptEvent({ sessionId: id, type: 'speechEnded', atMs: 80, silenceMs: 1520 });
+  assert.equal(results.at(-1).words[0].state, 'correct');
+  await engine.pushAudio([0, 0]);
+  engine.acceptEvent({ sessionId: id, type: 'speechStarted', atMs: 2000 });
+  await engine.pushAudio([.1, .2]);
+  engine.acceptChunk(snapshot(['a', 'b', 'c', 'd', 'e', 'f']));
+  assert.equal(results.at(-1).words[1].state, 'correct');
+  engine.acceptEvent({ sessionId: id, type: 'speechEnded', atMs: 2200, silenceMs: 1520 });
+  assert.deepEqual(results.at(-1).words.map(word => word.state), ['correct', 'correct', 'correct']);
+  assert.equal(results.at(-1).decoded.isFinal, false);
+  assert.deepEqual(audio, [[0, 0], [.1, .2]]);
+  assert.equal(calls.length, 1);
+});
+
 test('storage inspection configures the client but never downloads a model', async () => {
   let loads = 0;
   const { engine } = fixture({ loadModel: async () => { loads++; }, getModelStorage: async () => ({ models: [] }) });

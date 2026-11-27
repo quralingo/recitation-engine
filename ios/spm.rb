@@ -115,6 +115,11 @@ module QuralingoRecitationSPM
       file = phase.add_file_reference(ref, true)
     end
     file.settings = { 'ATTRIBUTES' => ['CodeSignOnCopy', 'RemoveHeadersOnCopy'] }
+    # Info.plist processing inspects embedded frameworks. Copy before scripts
+    # that consume the processed plist (e.g. RNFirebase), avoiding a phase cycle.
+    target.build_phases.delete(phase)
+    anchor = target.resources_build_phase || target.frameworks_build_phase
+    target.build_phases.insert(anchor ? target.build_phases.index(anchor) + 1 : 0, phase)
   end
 
 end

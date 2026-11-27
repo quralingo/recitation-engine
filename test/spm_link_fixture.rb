@@ -49,7 +49,15 @@ app.frameworks_build_phase.add_file_reference(pod.product_reference)
 pod_info = Struct.new(:pod_name).new('QuralingoRecitation')
 aggregate = Struct.new(:pod_targets, :user_project, :user_targets).new([pod_info], project, [app])
 installer = Struct.new(:pods_project, :aggregate_targets).new(project, [aggregate])
+plist_phase = app.new_shell_script_build_phase('[CP-User] [RNFB] Core Configuration')
+plist_phase.input_paths = ['$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)']
+plist_phase.shell_script = '/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" >/dev/null'
 quralingo_recitation_spm(installer)
+if ARGV.include?('--reproduce-embedding-cycle')
+  embed = app.copy_files_build_phases.find { |p| p.name == QuralingoRecitationSPM::EMBED_PHASE }
+  app.build_phases.delete(embed)
+  app.build_phases << embed
+end
 # Negative control: retaining the product on both targets is precisely beta.3.
 QuralingoRecitationSPM.attach(project, app, link: true) if ARGV.include?('--reproduce-beta3')
 # Substitute an offline local SPM product with Swift, C and resources for the
@@ -81,6 +89,10 @@ ok = system({ 'CLANG_MODULE_CACHE_PATH' => File.join(cache, 'Clang'),
   '-derivedDataPath', File.join(root, 'DerivedData'), '-packageCachePath', File.join(cache, 'Packages'),
   'ARCHS=arm64', 'ONLY_ACTIVE_ARCH=YES', 'CODE_SIGNING_ALLOWED=NO', 'build', out: log, err: [:child, :out])
 unless ok
+  if ARGV.include?('--reproduce-embedding-cycle') && File.read(log).include?('Cycle inside')
+    puts 'Reproduced late framework embedding / Info.plist script dependency cycle'
+    exit 0
+  end
   if ARGV.include?('--reproduce-beta3') && File.read(log).include?('duplicate symbol')
     puts 'Reproduced beta.3 duplicate-symbol link failure'
     exit 0
@@ -88,6 +100,7 @@ unless ok
   warn File.readlines(log).grep(/error:|failed|BUILD FAILED/).last(15).join
   abort 'Offline static-link fixture did not build; inspect the log above'
 end
+raise 'Late embedding negative control unexpectedly built' if ARGV.include?('--reproduce-embedding-cycle')
 raise 'Beta.3 negative control unexpectedly linked' if ARGV.include?('--reproduce-beta3')
 archive = Dir.glob(File.join(root, 'DerivedData', 'Build', 'Products', '**', 'QuralingoRecitation.framework', 'QuralingoRecitation')).first
 raise 'Static archive not built' unless archive
